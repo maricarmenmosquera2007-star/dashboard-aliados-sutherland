@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Aliados – Sutherland TR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
+    button{font-family:inherit;}
+    textarea{font-family:inherit;resize:vertical;}
+    input{font-family:inherit;}
+    ::-webkit-scrollbar{width:6px;}
+    ::-webkit-scrollbar-thumb{background:#c5cfe0;border-radius:3px;}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .modal-box{background:white;border-radius:12px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);}
+    .inp{width:100%;padding:8px 11px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none;transition:border .15s;}
+    .inp:focus{border-color:#185FA5;}
+    .ta{width:100%;padding:8px 11px;border:1px solid #ddd;border-radius:6px;font-size:12px;outline:none;transition:border .15s;min-height:60px;resize:vertical;}
+    .ta:focus{border-color:#185FA5;}
+    .lbl{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;display:block;}
+    .btn-primary{background:#185FA5;color:white;border:none;padding:9px 18px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;}
+    .btn-ghost{background:transparent;color:#888;border:1px solid #ddd;padding:9px 18px;border-radius:7px;font-size:13px;cursor:pointer;}
+    .btn-danger{background:#fee2e2;color:#dc2626;border:none;padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;}
+    .tag{display:inline-block;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;}
+    .autosave-badge{position:fixed;bottom:20px;right:20px;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;font-size:11px;font-weight:700;transition:all .3s ease;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.15);pointer-events:none;}
+    .autosave-badge.guardando{background:#fef3c7;color:#92400e;}
+    .autosave-badge.guardado{background:#dcfce7;color:#166534;}
+    .spinner{display:inline-block;width:10px;height:10px;border:2px solid #92400e;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useRef,useEffect,useCallback} = React;
+const AZUL="#185FA5",AZUL_L="#e8f1fb",VERDE="#3B6D11",VERDE_L="#639922",NARANJA="#e07b00",PURP="#7c3aed";
+
+// ── AUTOSAVE: clave única, un solo objeto en localStorage ──
+const LS_KEY="suth_aliados_v2";
+function lsLoad(){try{const r=localStorage.getItem(LS_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function lsSave(data){try{localStorage.setItem(LS_KEY,JSON.stringify({...data,_at:new Date().toISOString()}));return true;}catch(e){return false;}}
+
+// ══ CALENDARIO ══
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS_SEM=["Lunes","Martes","Miercoles","Jueves","Viernes","Sabado","Domingo"];
+const PALETTE_CAL=["#f5b8d3","#f7e07f","#b9e6a5","#cfcfcf","#f29a9a","#a8d8f0","#f5c087","#d9a8f0","#9fd8c9","#c9c2f0","#f0b3c4","#c8e6c9","#ffe0b2","#b3e5fc"];
+// Festivos fijos de Colombia (mes 0-indexado)
+const FESTIVOS_CO={"2026-6-20":"Dia de la Independencia"};
+// Aliados propios del Calendario (independientes de Seguimiento/Estrategias): solo los 8 aliados reales en estas visitas
+const CAL_ALIADOS_INIT=[
+  {id:"axa_lockton",nombre:"Axa Y Lockton"},
+  {id:"fincomercio",nombre:"Fincomercio"},
+  {id:"compensar",nombre:"Compensar"},
+  {id:"bancolombia",nombre:"Bancolombia"},
+  {id:"bircham",nombre:"Bircham"},
+  {id:"smart_idiomas",nombre:"Smart Idiomas"},
+  {id:"fna",nombre:"Fondo Nacional del Ahorro"},
+  {id:"sanitas",nombre:"Sanitas"},
+];
+const SEDES=[
+  {id:"bogota",nombre:"Bogota"},
+  {id:"barranquilla",nombre:"Barranquilla"},
+  {id:"torre_cristal",nombre:"Torre Cristal (Bogota)"},
+];
+const DIRECTORIO_INIT=[
+  {id:"cajasan",empresa:"Cajasan",contacto:"Johanny Toscano",categoria:"Caja de compensación",ciudad:"Santander",correo:"johanny.toscano@cajasan.com",telefono:""},
+  {id:"edenred_bigpass",empresa:"Edenred BigPass",contacto:"Beatriz Torres",categoria:"Dispersión Bonificaciones (ecard)",ciudad:"Nacional",correo:"beatriz.torres1@edenred.com",telefono:""},
+  {id:"bink_card",empresa:"Bink Card",contacto:"Alfredo Díaz Ovalle",categoria:"Dispersión Bonificaciones (ecard)",ciudad:"Nacional",correo:"adiaz@binkcard.com",telefono:""},
+  {id:"compensar",empresa:"Compensar",contacto:"Carlos Ernesto Restrepo Moncada",categoria:"Caja de compensación",ciudad:"Bogotá",correo:"cerestrepom@compensar.com",telefono:"(322) 4110805 "},
+  {id:"axa_colpatria",empresa:"AXA Colpatria",contacto:"Jonathan Humberto Osuna",categoria:"Corredor",ciudad:"Bogotá",correo:"jonathan.osuna@lockton.com",telefono:""},
+  {id:"sanitas_eps",empresa:"Sanitas EPS",contacto:"Ivon Tatiana Hernández Correa",categoria:"EPS",ciudad:"Bogotá",correo:"ithernandez@epssanitas.com",telefono:""},
+  {id:"bircham_executive",empresa:"Bircham Executive",contacto:"Roxana Michelle Hernández Alas",categoria:"Estudios",ciudad:"Bogotá",correo:"michelle.alas@bircham.edu",telefono:""},
+  {id:"politecnico_grancolombia",empresa:"Politécnico Grancolombiano",contacto:"John A. Rodríguez A.",categoria:"Estudios",ciudad:"Bogotá",correo:"jalexandrodriguez@poligran.edu.co",telefono:""},
+  {id:"smart_idiomas",empresa:"Smart Idiomas",contacto:"Martha Helena Sánchez / Vanessa Redondo",categoria:"Estudios",ciudad:"Bogotá",correo:"m.sanchez@smartidiomas.edu.co / vredondo@smartidiomas.edu.co",telefono:""},
+  {id:"bancolombia_bogota",empresa:"Bancolombia Bogotá",contacto:"Jessica Viviana González Pinto",categoria:"Financieros",ciudad:"Bogotá",correo:"jvgonzal@bancolombia.com.co",telefono:"3219997435"},
+  {id:"fna_fondo_nacional_del_a",empresa:"FNA – Fondo Nacional del Ahorro",contacto:"Lida Marcela García Boborquez",categoria:"Fondo",ciudad:"Bogotá",correo:"lgarciab@fna.gov.co",telefono:""},
+  {id:"fincomercio_bogota",empresa:"Fincomercio Bogotá",contacto:"Diego Pacheco",categoria:"Fondo de empleados",ciudad:"Bogotá",correo:"diepac@fincomercio.com",telefono:"318 7067206"},
+  {id:"comfamiliar_atlantico",empresa:"Comfamiliar Atlántico",contacto:"Mónica Patricia Urueta / Catherine Cure",categoria:"Caja de compensación",ciudad:"Barranquilla",correo:"inhouse03@comfamiliar.com.co / ccure@comfamiliar.com.co",telefono:"3018083044"},
+  {id:"ceipa",empresa:"CEIPA",contacto:"Yeilen Nailea Guerrero Sierra",categoria:"Estudios",ciudad:"Barranquilla",correo:"yeilen_guerreros@ceipa.edu.co",telefono:""},
+  {id:"politecnico_grancolombia_2",empresa:"Politécnico Grancolombiano",contacto:"Nellys del Carmen Fernández Acosta",categoria:"Estudios",ciudad:"Barranquilla",correo:"ndefernandez@poligran.edu.co",telefono:""},
+  {id:"bancolombia_barranquilla",empresa:"Bancolombia Barranquilla",contacto:"Juliana Pineda Kerguelen",categoria:"Financieros",ciudad:"Barranquilla",correo:"jpineda@bancolombia.com.co",telefono:"3108052895"},
+  {id:"fincomercio_barranquilla",empresa:"Fincomercio Barranquilla",contacto:"Lorainne Dayana Solano Corrales",categoria:"Fondo de empleados",ciudad:"Barranquilla",correo:"lorsol@fincomercio.com",telefono:"3168338685"},
+  {id:"colpensiones_barranquill",empresa:"Colpensiones Barranquilla",contacto:"Dilver Torres",categoria:"Fondo de pensión y cesantías",ciudad:"Barranquilla",correo:"dtorres@colpensiones.gov.co",telefono:""},
+  {id:"porvenir_barranquilla",empresa:"Porvenir Barranquilla",contacto:"Ana Avendaño",categoria:"Fondo de pensión y cesantías",ciudad:"Barranquilla",correo:"anajimenez32@hotmail.com",telefono:""},
+  {id:"proteccion_barranquilla",empresa:"Protección Barranquilla",contacto:"Bayron Samper",categoria:"Fondo de pensión y cesantías",ciudad:"Barranquilla",correo:"bayron.samper@proteccion.com.co",telefono:""},
+  {id:"axa_colp_lockton_baq",empresa:"AXA Colp. & Lockton BAQ",contacto:"Keila Andrea Medina Rodríguez / Carnilo Tovar",categoria:"Reporte BAQ Julio",ciudad:"Barranquilla",correo:"keila.medina@axacolpatria.co",telefono:""},
+];
+const DIRECTORIO_COLS=[
+  {key:"empresa",label:"Empresa"},
+  {key:"contacto",label:"Nombre / Contacto"},
+  {key:"categoria",label:"Categoria"},
+  {key:"ciudad",label:"Ciudad"},
+  {key:"correo",label:"Correo"},
+  {key:"telefono",label:"Telefono"},
+];
+
+// ══════════════════════════════════════════════════════
+// FASE 1.1 — ESTRUCTURA DE DATOS EXTENDIDA
+// Aliados del Excel · No modifica UI existente
+// ══════════════════════════════════════════════════════
+
+// ALIADOS CONFIRMADOS — Hoja 1: Convenios Activos
+const ALIADOS_CONFIRMADOS=[
+  {id:"tu_lonchera",empresa:"Tu Lonchera",contacto:"Ver en Site",categoria:"Alimentos",ciudad:"",correo:"",telefono:"",estado:"Confirmado",beneficio:"5% y 15% DTO en marca snacks + Rifas",aplicaFamilia:false,comoAplica:"Visitas en Site (Pago QR, efectivo o datáfono)",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"slang",empresa:"SLANG",contacto:"",categoria:"Educación",ciudad:"",correo:"",telefono:"",estado:"Confirmado",beneficio:"Planes de inglés profesional 20% DTO",aplicaFamilia:true,comoAplica:"Charla / Stand en Site",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"politecnico_gcolombiano",empresa:"Politécnico Grancolombiano",contacto:"John A. Rodríguez",categoria:"Educación",ciudad:"Bogotá",correo:"jalexandrodriguez@poligran.edu.co",telefono:"",estado:"Confirmado",beneficio:"Descuentos preferenciales en pregrado y posgrado",aplicaFamilia:true,comoAplica:"Contactando directamente al asesor con carnet",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"smart_academia",empresa:"Smart Academia de Idiomas",contacto:"Martha Helena Sánchez",categoria:"Educación",ciudad:"Bogotá",correo:"m.sanchez@smartidiomas.edu.co",telefono:"",estado:"Confirmado",beneficio:"Descuentos en cursos de idiomas",aplicaFamilia:true,comoAplica:"Contactando directamente",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"bircham_international",empresa:"Bircham International",contacto:"Roxana Michelle Hernández",categoria:"Educación",ciudad:"Bogotá",correo:"michelle.alas@bircham.edu",telefono:"",estado:"Confirmado",beneficio:"Becas en educación superior a distancia",aplicaFamilia:true,comoAplica:"Charla informativa / Sesión virtual",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"cun",empresa:"CUN",contacto:"",categoria:"Educación",ciudad:"",correo:"",telefono:"",estado:"Confirmado",beneficio:"Descuentos 30%-60% en programas técnicos",aplicaFamilia:true,comoAplica:"Matrícula con convenio corporativo",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"dajan_spa",empresa:"Dajan Spa",contacto:"",categoria:"Bienestar",ciudad:"",correo:"",telefono:"",estado:"Confirmado",beneficio:"20% DTO en planes de spa",aplicaFamilia:true,comoAplica:"Reservando directamente",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"ofero",empresa:"OFERO",contacto:"",categoria:"Movilidad",ciudad:"",correo:"",telefono:"",estado:"Confirmado",beneficio:"5% DTO en motos/scooters eléctricas",aplicaFamilia:true,comoAplica:"Contactando con carnet y cédula",fechaInicioConvenio:"",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+];
+
+// ALIADOS EN GESTIÓN — Hoja 2: Por Concretar
+const ALIADOS_GESTION=[
+  {id:"cascos_store",empresa:"Cascos Store",contacto:"",categoria:"Accesorios",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"10% DTO en cascos y accesorios",aplicaFamilia:true,comoAplica:"Presencial con carnet",estadoNegociacion:"Pendiente",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"spinning_center",empresa:"Spinning Center",contacto:"",categoria:"Deporte",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"15% DTO en planes anuales de gimnasio",aplicaFamilia:false,comoAplica:"Inscripción presencial con certificado laboral",estadoNegociacion:"Por definir",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"stark_gym",empresa:"Stark Smart Gym",contacto:"",categoria:"Deporte",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"8%-12% DTO en gimnasio + parqueadero",aplicaFamilia:true,comoAplica:"Descuento por nómina o pago con carnet",estadoNegociacion:"En negociación",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"action_black",empresa:"Action Black",contacto:"",categoria:"Deporte",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"45% DTO entrenamiento + 10% ropa deportiva",aplicaFamilia:false,comoAplica:"Presentando carnet + pausas activas",estadoNegociacion:"En negociación",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"altavista",empresa:"Grupo Altavista",contacto:"",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"15% DTO experiencias/bonos + 10% conciertos",aplicaFamilia:true,comoAplica:"Presentando carnet en establecimientos",estadoNegociacion:"En negociación",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"multiparque",empresa:"Multiparque",contacto:"",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"Pasaportes 15% DTO + 10% bonos regalo",aplicaFamilia:true,comoAplica:"Código QR enviado a correo corporativo",estadoNegociacion:"Pendiente",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"parques_colombia",empresa:"Parques Colombia",contacto:"",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"8%-15% DTO pasaportes + bonos cumpleaños",aplicaFamilia:true,comoAplica:"Validación por código corporativo",estadoNegociacion:"En negociación",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"sal_si_puedes",empresa:"Sal Si Puedes",contacto:"",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"10% DTO permanente en Escape Room",aplicaFamilia:true,comoAplica:"Reserva web o presencial con carnet",estadoNegociacion:"En negociación",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"jupi_jump",empresa:"Jupi Jump",contacto:"",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"Combos y paquetes rotativos",aplicaFamilia:true,comoAplica:"Presentando carnet corporativo",estadoNegociacion:"Pendiente",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"helados_mimos",empresa:"Helados Mimos",contacto:"",categoria:"Alimentos",ciudad:"",correo:"",telefono:"",estado:"En Gestión",beneficio:"5% DTO en copas, malteadas y sundaes",aplicaFamilia:false,comoAplica:"Presentando carnet en punto de venta",estadoNegociacion:"Pendiente",responsable:"",meta:0,comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+];
+
+// DIRECTORIO DE CONTACTOS — Hoja 3: Nuevos Contactos
+const ALIADOS_CONTACTOS=[
+  {id:"o_boticario",empresa:"O Boticário",contacto:"-",categoria:"Belleza",ciudad:"",correo:"",telefono:"3156298771",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"arendina",empresa:"Aréandina",contacto:"-",categoria:"Educación",ciudad:"",correo:"",telefono:"3203503940",estado:"Contacto",beneficio:"30% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"uniminuto_ctc",empresa:"Uniminuto",contacto:"-",categoria:"Educación",ciudad:"",correo:"",telefono:"3184413266",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"espumados",empresa:"Espumados",contacto:"Mónica Martínez",categoria:"Hogar",ciudad:"",correo:"",telefono:"3228909751",estado:"Contacto",beneficio:"12%-50% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"salitre_magico",empresa:"Salitre Mágico",contacto:"-",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"3219728289",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"hello_park",empresa:"Hello Park",contacto:"-",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"3160179038",estado:"Contacto",beneficio:"15% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"mundo_aventura",empresa:"Mundo Aventura",contacto:"-",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"3153922549",estado:"Contacto",beneficio:"20% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"sky_zone",empresa:"Sky Zone",contacto:"-",categoria:"Entretenimiento",ciudad:"",correo:"",telefono:"3104407557",estado:"Contacto",beneficio:"30% DTO en salto",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"nativos",empresa:"Nativos",contacto:"-",categoria:"Gastronomía",ciudad:"",correo:"",telefono:"3102813828",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"bagatelle",empresa:"Bagatelle",contacto:"-",categoria:"Gastronomía",ciudad:"",correo:"",telefono:"3102560542",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"buffalo_wings",empresa:"Buffalo Wings",contacto:"-",categoria:"Gastronomía",ciudad:"",correo:"",telefono:"3167441107",estado:"Contacto",beneficio:"15% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"burger_king",empresa:"Burger King",contacto:"-",categoria:"Gastronomía",ciudad:"",correo:"",telefono:"3007022000",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"leonisa",empresa:"Leonisa",contacto:"-",categoria:"Moda",ciudad:"",correo:"",telefono:"3228097962",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"okey_sport",empresa:"Okey Sport",contacto:"-",categoria:"Deporte",ciudad:"",correo:"",telefono:"3207848931",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"fiorenzi",empresa:"Fiorenzi",contacto:"-",categoria:"Moda",ciudad:"",correo:"",telefono:"3172413617",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"punto_blanco",empresa:"Punto Blanco",contacto:"-",categoria:"Moda",ciudad:"",correo:"",telefono:"300261027",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"clic_air",empresa:"Clic Air",contacto:"-",categoria:"Viajes",ciudad:"",correo:"",telefono:"3183066027",estado:"Contacto",beneficio:"5% DTO + 50% ruta específica",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"vehiculos_ctc",empresa:"Vehículos",contacto:"-",categoria:"Transporte",ciudad:"",correo:"",telefono:"3218007503",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"on_vacation",empresa:"On Vacation",contacto:"-",categoria:"Turismo",ciudad:"",correo:"",telefono:"3004838044",estado:"Contacto",beneficio:"10% DTO",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"eventurismo",empresa:"Eventurismo",contacto:"-",categoria:"Turismo",ciudad:"",correo:"",telefono:"3143828556",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"hotel_bachue",empresa:"Hotel Bachué",contacto:"-",categoria:"Hoteles",ciudad:"",correo:"",telefono:"",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+  {id:"lafam",empresa:"Lafam",contacto:"-",categoria:"Salud",ciudad:"",correo:"",telefono:"3152012572",estado:"Contacto",beneficio:"",responsable:"",comentarios:"",fechaUltimoContacto:"",historialEstados:[]},
+];
+
+// FUSIÓN: Combina datos del usuario con nuevos aliados sin duplicados
+function fusionarAliadosNuevos(aliadosExistentes){
+  const idsExistentes=new Set(aliadosExistentes.map(a=>a.id));
+  const todosAliados=[...aliadosExistentes];
+  ALIADOS_CONFIRMADOS.forEach(a=>{if(!idsExistentes.has(a.id))todosAliados.push(a);});
+  ALIADOS_GESTION.forEach(a=>{if(!idsExistentes.has(a.id))todosAliados.push(a);});
+  ALIADOS_CONTACTOS.forEach(a=>{if(!idsExistentes.has(a.id))todosAliados.push(a);});
+  return todosAliados;
+}
+
+// CONFIGURACIÓN DE SEDES — Editable desde el Dashboard
+const SEDES_CONFIG_INIT=[
+  {id:"bogota",nombre:"Bogotá",colaboradores:0},
+  {id:"barranquilla",nombre:"Barranquilla",colaboradores:0},
+  {id:"torre_cristal",nombre:"Torre Cristal",colaboradores:0},
+];
+
+// ESTADOS POSIBLES DE ALIADO
+const ESTADOS_ALIADO=["Confirmado","En Gestión","Contacto"];
+const ESTADOS_NEGOCIACION=["Pendiente","En negociación","Por definir"];
+
+
+const TIPOS_ACTIVIDAD=["Stand","Activacion","Charla","Entrega de material","Asesorias","Otro"];
+const ESTADOS_VISITA=["Programada","En curso","Finalizada","Cancelada"];
+const COLOR_ESTADO={"Programada":"#a8d8f0","En curso":"#f5c087","Finalizada":"#b9e6a5","Cancelada":"#f29a9a"};
+const TIPOS_MATERIAL=["Volantes","Pendones","Souvenirs","Merchandising","Bonos","Otro"];
+const MODALIDADES_CHARLA=["Virtual","Presencial"];
+function visitaVacia(aliadoId){
+  return{
+    id:uid(),aliadoId,
+    fecha:new Date().toISOString().slice(0,10),
+    ciudad:"",site:"",tipoActividad:TIPOS_ACTIVIDAD[0],responsable:"",estado:"Programada",observaciones:"",
+    material:{llevo:false,tipo:TIPOS_MATERIAL[0],cantidad:"",observaciones:""},
+    fotos:[],
+    charla:{realizada:false,nombre:"",modalidad:MODALIDADES_CHARLA[0],fecha:"",duracion:"",asistentes:"",observaciones:""},
+    resultados:{colaboradoresAtendidos:"",afiliaciones:"",cotizaciones:"",comentarios:""},
+  };
+}
+
+function colorAliado(aliados,id){
+  const i=aliados.findIndex(a=>a.id===id);
+  return PALETTE_CAL[i>=0?i%PALETTE_CAL.length:0];
+}
+function getCalendarWeeks(anio,mes){
+  const primerDia=new Date(anio,mes,1);
+  let inicio=primerDia.getDay(); // 0=Dom..6=Sab
+  inicio=(inicio+6)%7; // 0=Lun..6=Dom
+  const diasEnMes=new Date(anio,mes+1,0).getDate();
+  const celdas=[];
+  for(let i=0;i<inicio;i++) celdas.push(null);
+  for(let d=1;d<=diasEnMes;d++) celdas.push(d);
+  while(celdas.length%7!==0) celdas.push(null);
+  const semanas=[];
+  for(let i=0;i<celdas.length;i+=7) semanas.push(celdas.slice(i,i+7));
+  return semanas;
+}
+
+function uid(){return Math.random().toString(36).slice(2,9);}
+
+/* ══ MODAL DIA (CALENDARIO) ══ */
+function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel}){
+  const [aliadoSel,setAliadoSel]=useState(aliados[0]?aliados[0].id:"");
+  const [nota,setNota]=useState("");
+  const titulo=`${fecha.dia} de ${MESES[fecha.mes]} de ${fecha.anio}`;
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box">
+        <h3 style={{fontSize:16,fontWeight:700,color:AZUL,marginBottom:16}}>📅 {titulo}</h3>
+
+        {eventos.length>0&&(
+          <div style={{display:"grid",gap:6,marginBottom:16}}>
+            {eventos.map(ev=>{
+              const al=ev.tipo==="aliado"?aliados.find(a=>a.id===ev.aliadoId):null;
+              return(<div key={ev.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"#f8f8f8",borderRadius:7}}>
+                {ev.tipo==="aliado"?(
+                  <><span style={{width:14,height:14,borderRadius:3,background:colorAliado(aliados,ev.aliadoId),flexShrink:0}}/>
+                  <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>{al?al.emoji+" "+al.nombre:"(aliado eliminado)"}</span></>
+                ):(
+                  <><span style={{width:14,height:14,borderRadius:3,background:"#dc2626",flexShrink:0}}/>
+                  <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>🔴 {ev.texto}</span></>
+                )}
+                <button className="btn-danger" onClick={()=>onDel(ev.id)}>Quitar</button>
+              </div>);
+            })}
+          </div>
+        )}
+
+        <div style={{borderTop:"1px solid #eee",paddingTop:14,marginBottom:14}}>
+          <label className="lbl">Agregar aliado a este dia</label>
+          <div style={{display:"flex",gap:8}}>
+            <select className="inp" value={aliadoSel} onChange={e=>setAliadoSel(e.target.value)} style={{background:"white"}}>
+              {aliados.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.nombre}</option>)}
+            </select>
+            <button className="btn-primary" onClick={()=>{if(aliadoSel)onAddAliado(aliadoSel);}} style={{whiteSpace:"nowrap"}}>+ Agregar</button>
+          </div>
+        </div>
+
+        <div>
+          <label className="lbl">Agregar nota / festivo</label>
+          <div style={{display:"flex",gap:8}}>
+            <input className="inp" value={nota} onChange={e=>setNota(e.target.value)} placeholder="Ej: Dia de la Independencia"/>
+            <button style={{background:"#dc2626",color:"white",border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{if(nota.trim()){onAddNota(nota.trim());setNota("");}}}>+ Nota</button>
+          </div>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:20}}>
+          <button className="btn-ghost" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ MODAL VISITA (crear/editar) ══ */
+function ModalVisita({inicial,aliadoNombre,onClose,onSave}){
+  const [f,setF]=useState(inicial);
+  const s=(k,v)=>setF(p=>({...p,[k]:v}));
+  const sMat=(k,v)=>setF(p=>({...p,material:{...p.material,[k]:v}}));
+  const sCharla=(k,v)=>setF(p=>({...p,charla:{...p.charla,[k]:v}}));
+  const sRes=(k,v)=>setF(p=>({...p,resultados:{...p.resultados,[k]:v}}));
+
+  const subirFotos=(e)=>{
+    const files=Array.from(e.target.files||[]);
+    files.forEach(file=>{
+      const reader=new FileReader();
+      reader.onload=(ev)=>{
+        setF(p=>({...p,fotos:[...p.fotos,{id:uid(),nombre:file.name,dataUrl:ev.target.result}]}));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value="";
+  };
+  const quitarFoto=(id)=>setF(p=>({...p,fotos:p.fotos.filter(ft=>ft.id!==id)}));
+
+  const guardar=()=>{
+    if(!f.fecha||!f.ciudad.trim()){ alert("La fecha y la ciudad son obligatorias."); return; }
+    onSave(f);
+  };
+
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box" style={{maxWidth:640}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:AZUL,marginBottom:4}}>📋 Registro de Visita</h3>
+        <p style={{fontSize:11,color:"#999",marginBottom:16}}>{aliadoNombre}</p>
+
+        {/* 1. DATOS DE LA VISITA */}
+        <div style={{fontSize:11,fontWeight:800,color:PURP,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8}}>1. Datos de la visita</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+          <div><label className="lbl">Fecha</label><input type="date" className="inp" value={f.fecha} onChange={e=>s("fecha",e.target.value)}/></div>
+          <div><label className="lbl">Ciudad</label><input className="inp" value={f.ciudad} onChange={e=>s("ciudad",e.target.value)} placeholder="Bogota, Barranquilla..."/></div>
+          <div><label className="lbl">Site / Sede</label><input className="inp" value={f.site} onChange={e=>s("site",e.target.value)} placeholder="Torre Cristal, Piso 5..."/></div>
+          <div><label className="lbl">Responsable</label><input className="inp" value={f.responsable} onChange={e=>s("responsable",e.target.value)} placeholder="Nombre del responsable"/></div>
+          <div>
+            <label className="lbl">Tipo de actividad</label>
+            <select className="inp" value={f.tipoActividad} onChange={e=>s("tipoActividad",e.target.value)} style={{background:"white"}}>
+              {TIPOS_ACTIVIDAD.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="lbl">Estado</label>
+            <select className="inp" value={f.estado} onChange={e=>s("estado",e.target.value)} style={{background:"white"}}>
+              {ESTADOS_VISITA.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+        </div>
+        <label className="lbl">Observaciones</label>
+        <textarea className="inp" rows={2} value={f.observaciones} onChange={e=>s("observaciones",e.target.value)} style={{marginBottom:16}}/>
+
+        {/* 2. MATERIAL ENTREGADO */}
+        <div style={{fontSize:11,fontWeight:800,color:PURP,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8,borderTop:"1px solid #eee",paddingTop:14}}>2. Material entregado</div>
+        <div style={{display:"flex",gap:16,alignItems:"center",marginBottom:10}}>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer"}}>
+            <input type="checkbox" checked={f.material.llevo} onChange={e=>sMat("llevo",e.target.checked)}/> Llevo material fisico
+          </label>
+        </div>
+        {f.material.llevo&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            <div>
+              <label className="lbl">Tipo de material</label>
+              <select className="inp" value={f.material.tipo} onChange={e=>sMat("tipo",e.target.value)} style={{background:"white"}}>
+                {TIPOS_MATERIAL.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div><label className="lbl">Cantidad aproximada</label><input type="number" className="inp" value={f.material.cantidad} onChange={e=>sMat("cantidad",e.target.value)}/></div>
+            <div style={{gridColumn:"1 / -1"}}><label className="lbl">Observaciones del material</label><input className="inp" value={f.material.observaciones} onChange={e=>sMat("observaciones",e.target.value)}/></div>
+          </div>
+        )}
+
+        {/* 3. EVIDENCIA FOTOGRAFICA */}
+        <div style={{fontSize:11,fontWeight:800,color:PURP,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8,borderTop:"1px solid #eee",paddingTop:14}}>3. Evidencia fotografica</div>
+        <input type="file" accept="image/*" multiple onChange={subirFotos} style={{fontSize:12,marginBottom:10}}/>
+        {f.fotos.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+            {f.fotos.map(ft=>(
+              <div key={ft.id} style={{position:"relative"}}>
+                <img src={ft.dataUrl} style={{width:"100%",height:64,objectFit:"cover",borderRadius:6,border:"1px solid #ddd"}}/>
+                <span onClick={()=>quitarFoto(ft.id)} style={{position:"absolute",top:-6,right:-6,background:"#dc2626",color:"white",borderRadius:"50%",width:18,height:18,fontSize:11,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>✕</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 4. CHARLA */}
+        <div style={{fontSize:11,fontWeight:800,color:PURP,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8,borderTop:"1px solid #eee",paddingTop:14}}>4. Charla</div>
+        <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer",marginBottom:10}}>
+          <input type="checkbox" checked={f.charla.realizada} onChange={e=>sCharla("realizada",e.target.checked)}/> Se realizo una charla
+        </label>
+        {f.charla.realizada&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            <div style={{gridColumn:"1 / -1"}}><label className="lbl">Nombre de la charla</label><input className="inp" value={f.charla.nombre} onChange={e=>sCharla("nombre",e.target.value)}/></div>
+            <div>
+              <label className="lbl">Modalidad</label>
+              <select className="inp" value={f.charla.modalidad} onChange={e=>sCharla("modalidad",e.target.value)} style={{background:"white"}}>
+                {MODALIDADES_CHARLA.map(t=><option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div><label className="lbl">Fecha</label><input type="date" className="inp" value={f.charla.fecha} onChange={e=>sCharla("fecha",e.target.value)}/></div>
+            <div><label className="lbl">Duracion (min)</label><input type="number" className="inp" value={f.charla.duracion} onChange={e=>sCharla("duracion",e.target.value)}/></div>
+            <div><label className="lbl">Cantidad de asistentes</label><input type="number" className="inp" value={f.charla.asistentes} onChange={e=>sCharla("asistentes",e.target.value)}/></div>
+            <div style={{gridColumn:"1 / -1"}}><label className="lbl">Observaciones</label><input className="inp" value={f.charla.observaciones} onChange={e=>sCharla("observaciones",e.target.value)}/></div>
+          </div>
+        )}
+
+        {/* 5. RESULTADOS */}
+        <div style={{fontSize:11,fontWeight:800,color:PURP,textTransform:"uppercase",letterSpacing:".5px",marginBottom:8,borderTop:"1px solid #eee",paddingTop:14}}>5. Resultados de la actividad</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          <div><label className="lbl">Colaboradores atendidos</label><input type="number" className="inp" value={f.resultados.colaboradoresAtendidos} onChange={e=>sRes("colaboradoresAtendidos",e.target.value)}/></div>
+          <div><label className="lbl">Afiliaciones / registros</label><input type="number" className="inp" value={f.resultados.afiliaciones} onChange={e=>sRes("afiliaciones",e.target.value)}/></div>
+          <div><label className="lbl">Cotizaciones / solicitudes</label><input type="number" className="inp" value={f.resultados.cotizaciones} onChange={e=>sRes("cotizaciones",e.target.value)}/></div>
+          <div style={{gridColumn:"1 / -1"}}><label className="lbl">Comentarios relevantes</label><textarea className="inp" rows={2} value={f.resultados.comentarios} onChange={e=>sRes("comentarios",e.target.value)}/></div>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"flex-end",gap:10}}>
+          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary" onClick={guardar}>Guardar visita</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ MODAL VER VISITA (solo lectura, con galeria) ══ */
+function ModalVerVisita({v,aliadoNombre,onClose,onEditar,onEliminar}){
+  const fmt=(d)=>{ if(!d) return "—"; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"}); };
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box" style={{maxWidth:600}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+          <h3 style={{fontSize:16,fontWeight:700,color:AZUL}}>📋 {aliadoNombre}</h3>
+          <span style={{background:COLOR_ESTADO[v.estado]||"#ddd",padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,color:"#333"}}>{v.estado}</span>
+        </div>
+        <p style={{fontSize:12,color:"#888",marginBottom:16}}>{fmt(v.fecha)} · {v.ciudad}{v.site?" · "+v.site:""} · {v.tipoActividad}</p>
+
+        {v.responsable&&<p style={{fontSize:12,marginBottom:6}}><b>Responsable:</b> {v.responsable}</p>}
+        {v.observaciones&&<p style={{fontSize:12,marginBottom:10,color:"#555"}}><b>Observaciones:</b> {v.observaciones}</p>}
+
+        {v.material&&v.material.llevo&&(
+          <div style={{background:"#f8f8f8",borderRadius:8,padding:"10px 12px",marginBottom:10,fontSize:12}}>
+            <b>Material entregado:</b> {v.material.tipo} · Cant. aprox: {v.material.cantidad||"—"}
+            {v.material.observaciones&&<div style={{color:"#777",marginTop:2}}>{v.material.observaciones}</div>}
+          </div>
+        )}
+
+        {v.charla&&v.charla.realizada&&(
+          <div style={{background:"#f3eeff",borderRadius:8,padding:"10px 12px",marginBottom:10,fontSize:12}}>
+            <b>Charla:</b> {v.charla.nombre||"(sin nombre)"} · {v.charla.modalidad} · {fmt(v.charla.fecha)}<br/>
+            Duracion: {v.charla.duracion||"—"} min · Asistentes: {v.charla.asistentes||"—"}
+            {v.charla.observaciones&&<div style={{color:"#777",marginTop:2}}>{v.charla.observaciones}</div>}
+          </div>
+        )}
+
+        {v.resultados&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+            <div style={{background:"#e8f5ec",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:16,fontWeight:800,color:VERDE}}>{v.resultados.colaboradoresAtendidos||0}</div>
+              <div style={{fontSize:9,color:"#666"}}>Colaboradores atendidos</div>
+            </div>
+            <div style={{background:"#eef2ff",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:16,fontWeight:800,color:PURP}}>{v.resultados.afiliaciones||0}</div>
+              <div style={{fontSize:9,color:"#666"}}>Afiliaciones</div>
+            </div>
+            <div style={{background:"#fff7ed",borderRadius:8,padding:"8px",textAlign:"center"}}>
+              <div style={{fontSize:16,fontWeight:800,color:"#c2703d"}}>{v.resultados.cotizaciones||0}</div>
+              <div style={{fontSize:9,color:"#666"}}>Cotizaciones</div>
+            </div>
+          </div>
+        )}
+        {v.resultados&&v.resultados.comentarios&&<p style={{fontSize:12,color:"#555",marginBottom:12}}><b>Comentarios:</b> {v.resultados.comentarios}</p>}
+
+        {v.fotos&&v.fotos.length>0&&(
+          <div style={{marginBottom:14}}>
+            <div className="lbl">Evidencia fotografica ({v.fotos.length})</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+              {v.fotos.map(ft=>(
+                <a key={ft.id} href={ft.dataUrl} target="_blank" rel="noreferrer">
+                  <img src={ft.dataUrl} style={{width:"100%",height:70,objectFit:"cover",borderRadius:6,border:"1px solid #ddd"}}/>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:16}}>
+          <button className="btn-danger" onClick={onEliminar}>Eliminar visita</button>
+          <div style={{display:"flex",gap:10}}>
+            <button className="btn-ghost" onClick={onClose}>Cerrar</button>
+            <button className="btn-primary" onClick={onEditar}>Editar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══ APP PRINCIPAL ══ */
+function App(){
+  // Carga inicial única desde localStorage
+  const _saved=lsLoad();
+  const [tab,setTab]=useState("dashboard");
+  const [saveStatus,setSaveStatus]=useState(""); // "guardando"|"guardado"|""
+  const [lastSaved,setLastSaved]=useState(()=>_saved&&_saved._at?new Date(_saved._at):null);
+  const [initDone,setInitDone]=useState(false); // evita escritura en el primer render
+  const [calEventos,setCalEventos]=useState(()=>_saved?.calEventos||[]);
+  const [calAliados,setCalAliados]=useState(()=>_saved?.calAliados||CAL_ALIADOS_INIT);
+  const [directorio,setDirectorio]=useState(()=>{
+    const base=_saved?.directorio||DIRECTORIO_INIT;
+    return fusionarAliadosNuevos(base);
+  });
+  const [dirFiltro,setDirFiltro]=useState("");
+  const [dirVista,setDirVista]=useState("confirmados"); // "confirmados" | "gestion" | "contactos" | "lista" | "visitas"
+  const [sedesConfig,setSedesConfig]=useState(()=>_saved?.sedesConfig||SEDES_CONFIG_INIT);
+  // Galería
+  const [galeria,setGaleria]=useState(()=>_saved?.galeria||[]);
+  const [galeriaFiltroAliado,setGaleriaFiltroAliado]=useState("");
+  const [galeriaFiltroMes,setGaleriaFiltroMes]=useState("");
+  const [galeriaFiltroTipo,setGaleriaFiltroTipo]=useState("");
+  const [galeriaLightbox,setGaleriaLightbox]=useState(null); // índice de foto activa
+  const [galeriaModal,setGaleriaModal]=useState(false);
+  const [galeriaForm,setGaleriaForm]=useState({titulo:"",descripcion:"",aliadoId:"",fecha:"",tipoActividad:"Stand",dataUrl:""});
+  // Revista
+  const [revistaMostrarGestion,setRevistaMostrarGestion]=useState(false);
+  const [revistaCatFiltro,setRevistaCatFiltro]=useState("");
+  const [revistaModalAliado,setRevistaModalAliado]=useState(null);
+  // Modal de edición de aliados (unificado para todas las vistas)
+  const [modalAliado,setModalAliado]=useState(false);
+  const [aliadoEditando,setAliadoEditando]=useState(null); // null = nuevo, objeto = editar existente
+  const [aliadoForm,setAliadoForm]=useState({});
+  const [modalEliminar,setModalEliminar]=useState(null); // id del aliado a eliminar
+  const [visitas,setVisitas]=useState(()=>_saved?.visitas||[]);
+  const [visSelAliadoId,setVisSelAliadoId]=useState(null);
+  const hoy=new Date();
+  const [visMes,setVisMes]=useState(hoy.getMonth());
+  const [visAnio,setVisAnio]=useState(hoy.getFullYear());
+  const [showModalVisita,setShowModalVisita]=useState(false);
+  const [visitaEditando,setVisitaEditando]=useState(null); // registro completo o null (nueva)
+  const [visitaViendo,setVisitaViendo]=useState(null); // registro para ModalVerVisita
+  const [calSede,setCalSede]=useState("bogota");
+  const [calMes,setCalMes]=useState(6); // 0-indexado: 6 = Julio
+  const [calAnio,setCalAnio]=useState(2026);
+  const [diaModal,setDiaModal]=useState(null); // {dia,mes,anio} | null
+  const [editAliadoId,setEditAliadoId]=useState(null);
+  const [editAliadoNombre,setEditAliadoNombre]=useState("");
+  const [nuevoAliadoCalNombre,setNuevoAliadoCalNombre]=useState("");
+  const [mostrandoNuevoAliadoCal,setMostrandoNuevoAliadoCal]=useState(false);
+  const [notice,setNotice]=useState(null); // {type:'ok'|'error', msg} - feedback visual de importar/exportar
+  const timeoutRef=useRef(null);
+  const fileInputRef=useRef(null);
+
+  useEffect(()=>{
+    if(!notice) return;
+    const t=setTimeout(()=>setNotice(null),4500);
+    return ()=>clearTimeout(t);
+  },[notice]);
+
+  // Cargar datos del localStorage al iniciar
+  // Marcar inicialización completada (evita guardar en el primer render)
+  useEffect(()=>{setInitDone(true);},[]);
+
+  // ── AUTOSAVE UNIFICADO: debounce 400ms, un solo objeto en LS ──
+  useEffect(()=>{
+    if(!initDone) return;
+    setSaveStatus("guardando");
+    if(timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current=setTimeout(()=>{
+      const ok=lsSave({calEventos,calAliados,directorio,sedesConfig,galeria,visitas});
+      if(ok){
+        setLastSaved(new Date());
+        setSaveStatus("guardado");
+        setTimeout(()=>setSaveStatus(""),3500);
+      }
+    },400);
+  },[calEventos,calAliados,directorio,sedesConfig,galeria,visitas,initDone]);
+
+  // ── CRUD UNIFICADO DE ALIADOS ──────────────────────────────
+  const aliadoVacio=(estadoDefault)=>({
+    id:"aliado_"+Date.now(),
+    empresa:"",contacto:"",categoria:"",ciudad:"",correo:"",telefono:"",
+    estado:estadoDefault||"Confirmado",
+    beneficio:"",aplicaFamilia:false,comoAplica:"",
+    estadoNegociacion:"Pendiente",
+    fechaInicioConvenio:"",responsable:"",meta:0,
+    comentarios:"",fechaUltimoContacto:"",historialEstados:[],
+    logo:"",descripcionCorta:"",
+  });
+
+  const abrirModalNuevo=(estadoDefault)=>{
+    setAliadoEditando(null);
+    setAliadoForm(aliadoVacio(estadoDefault));
+    setModalAliado(true);
+  };
+
+  const abrirModalEditar=(aliado)=>{
+    setAliadoEditando(aliado);
+    setAliadoForm({...aliado});
+    setModalAliado(true);
+  };
+
+  const cerrarModal=()=>{
+    setModalAliado(false);
+    setAliadoEditando(null);
+    setAliadoForm({});
+  };
+
+  const guardarAliado=()=>{
+    if(!aliadoForm.empresa||!aliadoForm.empresa.trim())return;
+    const ahora=new Date().toISOString().slice(0,10);
+    if(aliadoEditando){
+      // Edición: detectar si cambió el estado para registrar historial
+      const historialActual=aliadoForm.historialEstados||[];
+      const nuevoHistorial=aliadoEditando.estado!==aliadoForm.estado
+        ?[...historialActual,{estado:aliadoForm.estado,fecha:ahora,responsable:aliadoForm.responsable||""}]
+        :historialActual;
+      setDirectorio(prev=>prev.map(a=>a.id===aliadoForm.id
+        ?{...aliadoForm,historialEstados:nuevoHistorial}
+        :a
+      ));
+    }else{
+      // Nuevo aliado
+      const nuevo={
+        ...aliadoForm,
+        id:"aliado_"+Date.now(),
+        historialEstados:[{estado:aliadoForm.estado,fecha:ahora,responsable:aliadoForm.responsable||""}],
+      };
+      setDirectorio(prev=>[...prev,nuevo]);
+    }
+    cerrarModal();
+  };
+
+  const eliminarAliado=(id)=>{
+    setDirectorio(prev=>prev.filter(a=>a.id!==id));
+    setModalEliminar(null);
+  };
+  // ────────────────────────────────────────────────────────────
+
+  // Formatea la fecha/hora del último guardado
+  const fmtLastSaved=(d)=>{
+    if(!d) return null;
+    return d.toLocaleDateString("es-CO",{day:"2-digit",month:"2-digit",year:"numeric"})
+      +" - "+d.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",hour12:true});
+  };
+
+  // ══ Calendario ══
+  const abrirDia=(dia)=>setDiaModal({dia,mes:calMes,anio:calAnio});
+  const cerrarDia=()=>setDiaModal(null);
+  const eventosDelDia=(dia,mes,anio)=>calEventos.filter(ev=>ev.dia===dia&&ev.mes===mes&&ev.anio===anio&&(ev.sede||"bogota")===calSede);
+  const addCalAliado=(aliadoId)=>{
+    if(!diaModal) return;
+    setCalEventos(p=>[...p,{id:uid(),tipo:"aliado",aliadoId,dia:diaModal.dia,mes:diaModal.mes,anio:diaModal.anio,sede:calSede}]);
+  };
+  const addCalNota=(texto)=>{
+    if(!diaModal) return;
+    setCalEventos(p=>[...p,{id:uid(),tipo:"nota",texto,dia:diaModal.dia,mes:diaModal.mes,anio:diaModal.anio,sede:calSede}]);
+  };
+  const delCalEvento=(id)=>setCalEventos(p=>p.filter(ev=>ev.id!==id));
+  const mesAnterior=()=>{ if(calMes===0){setCalMes(11);setCalAnio(a=>a-1);} else setCalMes(m=>m-1); };
+  const mesSiguiente=()=>{ if(calMes===11){setCalMes(0);setCalAnio(a=>a+1);} else setCalMes(m=>m+1); };
+  const iniciarEdicionAliado=(a)=>{setEditAliadoId(a.id);setEditAliadoNombre(a.nombre);};
+  const guardarEdicionAliado=()=>{
+    if(editAliadoId){
+      const nombreTrim=editAliadoNombre.trim();
+      if(nombreTrim) setCalAliados(p=>p.map(a=>a.id===editAliadoId?{...a,nombre:nombreTrim}:a));
+    }
+    setEditAliadoId(null);
+  };
+  const agregarAliadoCalendario=()=>{
+    const nombre=nuevoAliadoCalNombre.trim();
+    if(nombre) setCalAliados(p=>[...p,{id:uid(),nombre}]);
+    setNuevoAliadoCalNombre("");
+    setMostrandoNuevoAliadoCal(false);
+  };
+  const eliminarAliadoCalendario=(id)=>{
+    setCalAliados(p=>p.filter(a=>a.id!==id));
+    setCalEventos(p=>p.filter(ev=>!(ev.tipo==="aliado"&&ev.aliadoId===id)));
+  };
+
+  // ══ Directorio de Aliados ══
+  const editarDirCelda=(id,campo,valor)=>setDirectorio(p=>p.map(r=>r.id===id?{...r,[campo]:valor}:r));
+  const agregarFilaDirectorio=()=>{
+    setDirectorio(p=>[...p,{id:uid(),empresa:"",contacto:"",categoria:"",ciudad:"",correo:"",telefono:""}]);
+  };
+  const eliminarFilaDirectorio=(id)=>setDirectorio(p=>p.filter(r=>r.id!==id));
+
+  // ══ Control de Visitas y Gestion Mensual ══
+  const abrirNuevaVisita=(aliadoId)=>{ setVisitaEditando(visitaVacia(aliadoId)); setShowModalVisita(true); };
+  const abrirEditarVisita=(v)=>{ setVisitaViendo(null); setVisitaEditando(v); setShowModalVisita(true); };
+  const guardarVisita=(data)=>{
+    setVisitas(p=>{
+      const existe=p.some(v=>v.id===data.id);
+      return existe?p.map(v=>v.id===data.id?data:v):[...p,data];
+    });
+    setShowModalVisita(false);
+    setVisitaEditando(null);
+  };
+  const eliminarVisita=(id)=>{
+    if(!confirm("Eliminar esta visita? Esta accion no se puede deshacer.")) return;
+    setVisitas(p=>p.filter(v=>v.id!==id));
+    setVisitaViendo(null);
+  };
+  const visitasDe=(aliadoId)=>visitas.filter(v=>v.aliadoId===aliadoId).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const visitasDeMes=(aliadoId,mes,anio)=>visitasDe(aliadoId).filter(v=>{
+    const d=new Date(v.fecha+"T00:00:00");
+    return d.getMonth()===mes&&d.getFullYear()===anio;
+  });
+  const num=(x)=>Number(x)||0;
+  const reporteMensual=(aliadoId,mes,anio)=>{
+    const vs=visitasDeMes(aliadoId,mes,anio);
+    return{
+      totalVisitas:vs.length,
+      totalActividades:vs.filter(v=>v.estado!=="Cancelada").length,
+      totalCharlas:vs.filter(v=>v.charla&&v.charla.realizada).length,
+      totalColaboradores:vs.reduce((s,v)=>s+num(v.resultados&&v.resultados.colaboradoresAtendidos),0),
+      totalAfiliaciones:vs.reduce((s,v)=>s+num(v.resultados&&v.resultados.afiliaciones),0),
+      totalCotizaciones:vs.reduce((s,v)=>s+num(v.resultados&&v.resultados.cotizaciones),0),
+      totalFotos:vs.reduce((s,v)=>s+(v.fotos?v.fotos.length:0),0),
+      materiales:vs.filter(v=>v.material&&v.material.llevo).reduce((acc,v)=>{
+        const t=v.material.tipo||"Otro";
+        acc[t]=(acc[t]||0)+num(v.material.cantidad);
+        return acc;
+      },{}),
+    };
+  };
+  const mesAnteriorDe=(mes,anio)=> mes===0?{mes:11,anio:anio-1}:{mes:mes-1,anio};
+  const deltaPct=(actual,anterior)=>{
+    if(anterior===0) return actual>0?100:0;
+    return Math.round(((actual-anterior)/anterior)*100);
+  };
+
+  // Exportar/Importar respaldo completo en JSON
+  const exportData=()=>{
+    const payload={
+      version:7,
+      exportadoEn:new Date().toISOString(),
+      calEventos,calAliados,directorio,visitas,galeria,sedesConfig,
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    const fecha=new Date().toISOString().slice(0,10);
+    a.href=url;
+    a.download=`plan-estrategico-backup-${fecha}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importData=(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    if(!file){ e.target.value=""; return; }
+    const reader=new FileReader();
+    reader.onload=(ev)=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        const tieneDatosValidos=data&&(data.calEventos||data.calAliados||data.directorio||data.visitas);
+        if(!tieneDatosValidos){
+          setNotice({type:"error",msg:"El archivo no tiene el formato esperado (debe ser un JSON exportado desde este mismo dashboard)."});
+          e.target.value="";
+          return;
+        }
+        if(data.calEventos) setCalEventos(data.calEventos);
+        if(data.calAliados) setCalAliados(data.calAliados);
+        if(data.directorio) setDirectorio(fusionarAliadosNuevos(data.directorio));
+        if(data.visitas) setVisitas(data.visitas);
+        if(data.galeria) setGaleria(data.galeria);
+        if(data.sedesConfig) setSedesConfig(data.sedesConfig);
+        setNotice({type:"ok",msg:"Datos importados correctamente. Se reemplazaron los datos que tenías antes."});
+      }catch(err){
+        setNotice({type:"error",msg:"No se pudo leer el archivo. Verifica que sea un .json exportado desde este dashboard."});
+      }
+      e.target.value="";
+    };
+    reader.onerror=()=>{
+      setNotice({type:"error",msg:"Hubo un error leyendo el archivo. Intenta de nuevo."});
+      e.target.value="";
+    };
+    reader.readAsText(file);
+  };
+
+  const TS=(t)=>({padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",border:"none",
+    borderBottom:tab===t?"3px solid "+AZUL:"3px solid transparent",background:"transparent",
+    color:tab===t?AZUL:"#888",transition:"all .15s"});
+
+  const fmtFecha=(f)=>{
+    if(!f) return null;
+    const d=new Date(f+"T12:00:00");
+    return d.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"});
+  };
+
+  return(
+<div style={{minHeight:"100vh",background:"#f0f2f5",padding:"24px 20px"}}>
+  {(saveStatus||lastSaved)&&(
+    <div className={`autosave-badge ${saveStatus||"guardado"}`}>
+      {saveStatus==="guardando"?(
+        <><span className="spinner"/><span>Guardando...</span></>
+      ):(
+        <><span>✓</span><span>Última actualización: {fmtLastSaved(lastSaved)}</span></>
+      )}
+    </div>
+  )}
+  {notice&&(
+    <div style={{position:"fixed",top:20,left:"50%",transform:"translateX(-50%)",maxWidth:420,padding:"12px 18px",borderRadius:10,fontSize:13,fontWeight:600,zIndex:1001,boxShadow:"0 4px 12px rgba(0,0,0,.15)",background:notice.type==="ok"?"#dcfce7":"#fee2e2",color:notice.type==="ok"?"#166534":"#dc2626",display:"flex",alignItems:"center",gap:8}}>
+      <span>{notice.type==="ok"?"✓":"⚠️"}</span>
+      <span style={{flex:1}}>{notice.msg}</span>
+      <span onClick={()=>setNotice(null)} style={{cursor:"pointer",opacity:.6,fontWeight:400,fontSize:16,lineHeight:1}}>×</span>
+    </div>
+  )}
+  {diaModal&&<ModalDia fecha={diaModal} eventos={eventosDelDia(diaModal.dia,diaModal.mes,diaModal.anio)} aliados={calAliados} onClose={cerrarDia} onAddAliado={addCalAliado} onAddNota={addCalNota} onDel={delCalEvento}/>}
+  {showModalVisita&&visitaEditando&&<ModalVisita inicial={visitaEditando} aliadoNombre={(directorio.find(d=>d.id===visitaEditando.aliadoId)||{}).empresa||""} onClose={()=>{setShowModalVisita(false);setVisitaEditando(null);}} onSave={guardarVisita}/>}
+  {visitaViendo&&<ModalVerVisita v={visitaViendo} aliadoNombre={(directorio.find(d=>d.id===visitaViendo.aliadoId)||{}).empresa||""} onClose={()=>setVisitaViendo(null)} onEditar={()=>abrirEditarVisita(visitaViendo)} onEliminar={()=>eliminarVisita(visitaViendo.id)}/>}
+
+  {/* HEADER */}
+  <div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"flex-end",gap:12,flexWrap:"wrap"}}>
+    <div>
+      <h1 style={{fontSize:21,fontWeight:800,color:AZUL,marginBottom:3}}>📋 Plan Estrategico de Convenios y Beneficios</h1>
+      <p style={{fontSize:11,color:"#999"}}>Maricarmen Mosquera Diaz · Practicante TR · Sutherland · Inicio: junio 18, 2026</p>
+    </div>
+    <div style={{display:"flex",gap:8}}>
+      <input ref={fileInputRef} type="file" accept="application/json" onChange={importData} style={{display:"none"}}/>
+      <button onClick={()=>fileInputRef.current&&fileInputRef.current.click()} style={{background:"white",color:AZUL,border:"1px solid "+AZUL,padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>⬆️ Importar datos</button>
+      <button onClick={exportData} style={{background:AZUL,color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>⬇️ Exportar datos</button>
+    </div>
+  </div>
+
+  {/* ── BANNER COLABORACIÓN ── */}
+  <div style={{background:"#f8faff",border:"1px solid #d0e2ff",borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+    <span style={{fontSize:20,flexShrink:0}}>🤝</span>
+    <div style={{flex:1,minWidth:220}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#1a3a6b",marginBottom:2}}>¿Cómo compartir cambios con el equipo?</div>
+      <div style={{fontSize:11,color:"#555",lineHeight:1.6}}>
+        <b>Para enviar:</b> clic en <b>⬇️ Exportar datos</b> → se descarga un archivo <code style={{background:"#e8f1fb",padding:"1px 5px",borderRadius:3,fontSize:10}}>.json</code> → compártelo por Teams o correo.&nbsp;
+        <b>Para recibir:</b> clic en <b>⬆️ Importar datos</b> → selecciona el archivo que te enviaron → listo.
+      </div>
+    </div>
+    <div style={{fontSize:10,color:"#aaa",flexShrink:0,textAlign:"right"}}>
+      Los datos se guardan<br/>automáticamente en<br/>este navegador ✓
+    </div>
+  </div>
+
+  {/* KPIs */}
+  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+    {[
+      {label:"Total de contactos en el directorio",val:directorio.length,icon:"📇",color:AZUL},
+      {label:"Aliados en Calendario",val:calAliados.length,icon:"📅",color:PURP},
+      {label:"Eventos Programados",val:calEventos.length,icon:"🗓️",color:NARANJA},
+      {label:"Visitas Registradas",val:visitas.length,icon:"✅",color:VERDE},
+    ].map(k=>(
+      <div key={k.label} style={{background:"white",borderRadius:10,border:"1px solid #e5e5e5",padding:"11px 14px",display:"flex",gap:10,alignItems:"center"}}>
+        <span style={{fontSize:20}}>{k.icon}</span>
+        <div><div style={{fontSize:17,fontWeight:800,color:k.color}}>{k.val}</div>
+        <div style={{fontSize:10,color:"#aaa",marginTop:1}}>{k.label}</div></div>
+      </div>
+    ))}
+  </div>
+
+  {/* TABS */}
+  <div style={{background:"white",borderRadius:"10px 10px 0 0",border:"1px solid #e5e5e5",borderBottom:"none",display:"flex",paddingLeft:6}}>
+    <button style={TS("dashboard")} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
+    <button style={TS("calendario")} onClick={()=>setTab("calendario")}>📅 Calendario</button>
+    <button style={TS("directorio")} onClick={()=>setTab("directorio")}>📇 Directorio de Aliados</button>
+    <button style={TS("galeria")} onClick={()=>setTab("galeria")}>🖼️ Galería</button>
+  </div>
+
+  <div style={{background:"white",borderRadius:"0 0 10px 10px",border:"1px solid #e5e5e5",padding:22}}>
+
+  {/* ══════ TAB DASHBOARD ══════ */}
+  {tab==="dashboard"&&(()=>{
+    const hoyD=new Date();
+    const mesActual=hoyD.getMonth();
+    const anioActual=hoyD.getFullYear();
+    const mesPasado=mesActual===0?11:mesActual-1;
+    const anioPasadoD=mesActual===0?anioActual-1:anioActual;
+    const hoyMs=hoyD.getTime();
+
+    const confirmados=directorio.filter(a=>a.estado==="Confirmado");
+    const enGestion=directorio.filter(a=>a.estado==="En Gestión");
+    const contactos=directorio.filter(a=>a.estado==="Contacto");
+
+    // ── Bloque A ──
+    const nuevosEsteMes=confirmados.filter(a=>{if(!a.fechaInicioConvenio)return false;const f=new Date(a.fechaInicioConvenio);return f.getMonth()===mesActual&&f.getFullYear()===anioActual;});
+    const nuevosMesPasado=confirmados.filter(a=>{if(!a.fechaInicioConvenio)return false;const f=new Date(a.fechaInicioConvenio);return f.getMonth()===mesPasado&&f.getFullYear()===anioPasadoD;});
+    const pctCrecimiento=nuevosMesPasado.length>0?Math.round(((nuevosEsteMes.length-nuevosMesPasado.length)/nuevosMesPasado.length)*100):null;
+    const CATS_REF=["Salud","Tecnología","Transporte","Turismo","Deporte","Gastronomía","Educación","Entretenimiento","Moda","Bienestar","Alimentos","Movilidad","Accesorios","Hoteles","Viajes"];
+    const catsCubiertas=new Set(confirmados.map(a=>a.categoria).filter(Boolean));
+    const catsSinCobertura=CATS_REF.filter(c=>![...catsCubiertas].some(cc=>cc.toLowerCase().includes(c.toLowerCase())));
+    const evolucion={};
+    confirmados.forEach(a=>{if(!a.fechaInicioConvenio)return;const f=new Date(a.fechaInicioConvenio);const key=f.getFullYear()+"-"+(String(f.getMonth()+1).padStart(2,"0"));evolucion[key]=(evolucion[key]||0)+1;});
+    const evKeys=Object.keys(evolucion).sort();
+    let acum=0;
+    const evAcum=evKeys.map(k=>{acum+=evolucion[k];return{mes:k,total:acum,nuevos:evolucion[k]};});
+    const hayFechas=confirmados.some(a=>a.fechaInicioConvenio);
+
+    // ── Bloque B (Cobertura) ──
+    const porCat={};
+    confirmados.forEach(a=>{const c=a.categoria||"Sin categoría";porCat[c]=(porCat[c]||0)+1;});
+    const catEntries=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
+    const maxCat=catEntries.length>0?catEntries[0][1]:1;
+    const conFamilia=confirmados.filter(a=>a.aplicaFamilia);
+    const pctFamilia=confirmados.length>0?Math.round((conFamilia.length/confirmados.length)*100):0;
+    const porCiudad={};
+    confirmados.forEach(a=>{if(a.ciudad&&a.ciudad.trim()){const c=a.ciudad.trim();porCiudad[c]=(porCiudad[c]||0)+1;}});
+    const ciudadEntries=Object.entries(porCiudad).sort((a,b)=>b[1]-a[1]);
+    const maxCiudad=ciudadEntries.length>0?ciudadEntries[0][1]:1;
+
+
+
+
+    // ── Componentes visuales ──
+    const PALETA=[VERDE,AZUL,NARANJA,"#7c3aed","#06b6d4"];
+
+    // Separador de sección
+    const SecHeader=({color,letra,titulo})=>(
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,paddingBottom:10,borderBottom:"2px solid #f0f0f0"}}>
+        <div style={{width:4,height:22,background:color,borderRadius:2}}/>
+        <div>
+          <span style={{fontSize:9,fontWeight:800,color:color,textTransform:"uppercase",letterSpacing:2}}>{letra}</span>
+          <div style={{fontSize:14,fontWeight:700,color:"#222",lineHeight:1.1}}>{titulo}</div>
+        </div>
+      </div>
+    );
+
+    // KPI Card ejecutiva
+    const KpiCard=({valor,label,sub,color,bg,badge,desc})=>(
+      <div style={{background:bg||"white",borderRadius:12,padding:"18px 20px",border:"1px solid #e5e7eb",flex:1,minWidth:150,position:"relative",boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+        {badge&&<span style={{position:"absolute",top:12,right:12,fontSize:10,fontWeight:700,background:badge.bg,color:badge.color,borderRadius:20,padding:"3px 8px"}}>{badge.text}</span>}
+        <div style={{fontSize:34,fontWeight:900,color:color||"#1a1a1a",lineHeight:1,letterSpacing:-1}}>{valor}</div>
+        <div style={{fontSize:13,fontWeight:700,color:"#333",marginTop:8,lineHeight:1.3}}>{label}</div>
+        {sub&&<div style={{fontSize:11,color:"#777",marginTop:4,lineHeight:1.4}}>{sub}</div>}
+        {desc&&<div style={{fontSize:10,color:"#b0b0b0",marginTop:8,paddingTop:8,borderTop:"1px solid #f0f0f0",lineHeight:1.5}}>{desc}</div>}
+      </div>
+    );
+
+    // Barra con valor numérico
+    const Barra=({label,valor,pct,color,sub})=>(
+      <div style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:4}}>
+          <span style={{fontSize:12,fontWeight:600,color:"#333"}}>{label}</span>
+          <span style={{fontSize:13,fontWeight:800,color:color||"#333"}}>{valor}</span>
+        </div>
+        {sub&&<div style={{fontSize:10,color:"#999",marginBottom:4}}>{sub}</div>}
+        <div style={{background:"#ebebeb",borderRadius:6,height:8,overflow:"hidden"}}>
+          <div style={{background:color,width:Math.min(100,pct)+"%",height:"100%",borderRadius:6,transition:"width .4s"}}/>
+        </div>
+      </div>
+    );
+
+    // Panel contenedor
+    const Panel=({children,mb})=>(
+      <div style={{background:"white",borderRadius:12,padding:"18px 20px",border:"1px solid #e5e7eb",marginBottom:mb||12,boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+        {children}
+      </div>
+    );
+
+    const PanelTitle=({children,sub})=>(
+      <div style={{marginBottom:sub?10:12}}>
+        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{children}</div>
+        {sub&&<div style={{fontSize:10,color:"#aaa",marginTop:2}}>{sub}</div>}
+      </div>
+    );
+
+    return(
+    <div style={{maxWidth:1100}}>
+
+      {/* ── ENCABEZADO ── */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28,paddingBottom:16,borderBottom:"2px solid #f0f0f0",flexWrap:"wrap",gap:8}}>
+        <div>
+          <h2 style={{fontSize:20,fontWeight:800,color:"#111",marginBottom:3,letterSpacing:-.5}}>Panel Ejecutivo</h2>
+          <p style={{fontSize:12,color:"#888",fontWeight:500}}>Programa de Aliados Sutherland TR · {hoyD.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"})}</p>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[{label:"Convenios activos",n:confirmados.length,color:VERDE,bg:"#f0f7eb"},{label:"En formalización",n:enGestion.length,color:NARANJA,bg:"#fff7f0"},{label:"Contactos",n:contactos.length,color:AZUL,bg:"#e8f1fb"}].map(({label,n,color,bg})=>(
+            <div key={label} style={{background:bg,borderRadius:8,padding:"6px 14px",display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:16,fontWeight:800,color}}>{n}</span>
+              <span style={{fontSize:11,fontWeight:600,color:"#666"}}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══ BANNER: 36 OPORTUNIDADES EN GESTIÓN ══ */}
+      <div style={{background:"linear-gradient(135deg,#185FA5 0%,#0e3d6e 100%)",borderRadius:14,padding:"20px 28px",marginBottom:28,display:"flex",alignItems:"center",gap:28,flexWrap:"wrap",boxShadow:"0 4px 20px rgba(24,95,165,.22)"}}>
+        <div style={{textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:52,fontWeight:900,color:"white",lineHeight:1,letterSpacing:-2}}>{directorio.length}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,.7)",marginTop:4,fontWeight:600,textTransform:"uppercase",letterSpacing:1}}>oportunidades totales</div>
+        </div>
+        <div style={{width:1,height:60,background:"rgba(255,255,255,.2)",flexShrink:0}}/>
+        <div style={{flex:1,minWidth:260}}>
+          <div style={{fontSize:13,color:"rgba(255,255,255,.95)",fontWeight:700,marginBottom:14,lineHeight:1.4}}>
+            Objetivo: todas las oportunidades deben avanzar hasta convertirse en <span style={{color:"#7ee8a2"}}>convenios confirmados</span>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            {[
+              {label:"Contactos",n:contactos.length,color:"rgba(255,255,255,.45)"},
+              {arrow:true},
+              {label:"En formalización",n:enGestion.length,color:"rgba(255,200,100,.85)"},
+              {arrow:true},
+              {label:"Convenios activos",n:confirmados.length,color:"#7ee8a2"},
+            ].map((s,i)=>s.arrow?(
+              <span key={i} style={{color:"rgba(255,255,255,.3)",fontSize:18,fontWeight:300,margin:"0 4px"}}>→</span>
+            ):(
+              <div key={i} style={{textAlign:"center",minWidth:90}}>
+                <div style={{fontSize:22,fontWeight:900,color:s.color,lineHeight:1}}>{s.n}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,.55)",fontWeight:600,marginTop:3,textTransform:"uppercase",letterSpacing:.5}}>{s.label}</div>
+              </div>
+            ))}
+            <div style={{marginLeft:"auto",background:"rgba(255,255,255,.1)",borderRadius:10,padding:"8px 16px",border:"1px solid rgba(255,255,255,.15)",textAlign:"center",flexShrink:0}}>
+              <div style={{fontSize:10,color:"rgba(255,255,255,.55)",fontWeight:600,marginBottom:2}}>Tasa de conversión</div>
+              <div style={{fontSize:20,fontWeight:900,color:"white"}}>{directorio.length>0?Math.round((confirmados.length/directorio.length)*100):0}%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══ BLOQUE A ══ */}
+      <div style={{marginBottom:32}}>
+        <SecHeader color={AZUL} letra="A" titulo="Tamaño y Crecimiento del Portafolio"/>
+
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
+          <KpiCard valor={directorio.length} label="Total de contactos en el directorio" sub="Todos los registros gestionados por el área de Alianzas" color="#111" desc="Total de empresas en el directorio: confirmadas + en formalización + contactos iniciales."/>
+          <KpiCard valor={confirmados.length} label="Convenios activos" sub={confirmados.length>0?confirmados.length+" convenio"+(confirmados.length!==1?"s":"")+" confirmado"+(confirmados.length!==1?"s":""):"Sin convenios confirmados aún"} color={VERDE} bg="#f0f7eb" desc="Únicamente aliados con convenio cerrado y beneficio disponible para los colaboradores."/>
+          <KpiCard valor={nuevosEsteMes.length>0?"+"+nuevosEsteMes.length:"—"} label="Nuevos este mes" sub={!hayFechas?"Activa con fechas de inicio registradas":"Convenios confirmados en "+hoyD.toLocaleDateString("es-CO",{month:"long",year:"numeric"})} color={nuevosEsteMes.length>0?VERDE:"#bbb"} bg={nuevosEsteMes.length>0?"#f0f7eb":"white"}
+            badge={pctCrecimiento!==null?{text:(pctCrecimiento>=0?"↑ +":"↓ ")+pctCrecimiento+"%",bg:pctCrecimiento>=0?"#dcfce7":"#fee2e2",color:pctCrecimiento>=0?"#166534":"#991b1b"}:null}
+            desc="Convenios confirmados este mes. La flecha ↑↓ indica variación frente al mes anterior."/>
+          <KpiCard valor={catsCubiertas.size} label="Categorías cubiertas" sub={"de "+CATS_REF.length+" categorías de referencia"} color="#7c3aed" bg="#faf5ff" desc="Diversidad del catálogo. Más categorías = portafolio más completo para los colaboradores."/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+          <Panel>
+            <PanelTitle sub="Distribución actual de los aliados por etapa del programa.">Composición del portafolio</PanelTitle>
+            {[{label:"✅ Confirmados",n:confirmados.length,color:VERDE},{label:"⏳ En Gestión",n:enGestion.length,color:NARANJA},{label:"📞 Contactos",n:contactos.length,color:AZUL}].map(({label,n,color})=>(
+              <Barra key={label} label={label} valor={n+" aliado"+(n!==1?"s":"")} pct={directorio.length>0?Math.round((n/directorio.length)*100):0} color={color}/>
+            ))}
+          </Panel>
+
+          <Panel>
+            <PanelTitle sub={hayFechas?"Acumulado de convenios confirmados por mes.":"Completa 'Fecha de inicio' en cada convenio para activar."}>Evolución mensual de convenios</PanelTitle>
+            {evAcum.length>0?(
+              <div>
+                <div style={{display:"flex",alignItems:"flex-end",gap:5,height:80,marginBottom:6}}>
+                  {evAcum.map((e,i)=>(
+                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                      <span style={{fontSize:10,fontWeight:800,color:VERDE}}>{e.total}</span>
+                      <div style={{width:"100%",background:VERDE,borderRadius:"3px 3px 0 0",height:Math.round((e.total/Math.max(...evAcum.map(x=>x.total),1))*60)+"px",minHeight:4,opacity:.85}}/>
+                      {e.nuevos>0&&<span style={{fontSize:9,color:NARANJA,fontWeight:700}}>+{e.nuevos}</span>}
+                      <span style={{fontSize:9,color:"#aaa"}}>{e.mes.slice(5)}/{e.mes.slice(2,4)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:10,color:"#ccc",textAlign:"center"}}>Verde = acumulado · Naranja = nuevos ese mes</div>
+              </div>
+            ):(
+              <div style={{textAlign:"center",padding:"20px 0",color:"#ccc",fontSize:12}}>Sin datos de fecha registrados aún.</div>
+            )}
+          </Panel>
+        </div>
+
+        {catsSinCobertura.length>0&&(
+          <Panel>
+            <PanelTitle sub="Categorías estratégicas sin ningún convenio confirmado. Prioridades de expansión del programa.">🎯 Oportunidades de expansión ({catsSinCobertura.length} categorías sin cobertura)</PanelTitle>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {catsSinCobertura.map(c=>(
+                <span key={c} style={{background:"#fff7ed",color:"#9a3412",border:"1px solid #fed7aa",padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:600}}>{c}</span>
+              ))}
+            </div>
+          </Panel>
+        )}
+      </div>
+
+      {/* ══ BLOQUE B: CALIDAD Y COBERTURA ══ */}
+      <div style={{marginBottom:32}}>
+        <SecHeader color="#7c3aed" letra="B" titulo="Calidad y Cobertura del Portafolio"/>
+
+        <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
+          <KpiCard valor={pctFamilia+"%"} label="Convenios que aplican a familia" sub={conFamilia.length+" de "+confirmados.length+" convenios activos"} color="#7c3aed" bg="#faf5ff" desc="Porcentaje del portafolio confirmado cuyos beneficios se extienden a familiares."/>
+          <KpiCard valor={enGestion.length} label="Aliados en formalización" sub={"Negociaciones activas hacia convenio confirmado"} color={NARANJA} bg="#fff7f0" desc="Estos aliados están en proceso activo. El objetivo es que todos lleguen a 'Confirmado'."/>
+          <KpiCard valor={catEntries.length} label="Categorías con cobertura activa" sub={catEntries.length>0?"Mayor cobertura: "+catEntries[0][0]:"Sin convenios confirmados"} color={VERDE} bg="#f0f7eb" desc="Categorías distintas representadas en el portafolio confirmado."/>
+          <KpiCard valor={ciudadEntries.length||"—"} label="Ciudades con cobertura" sub={ciudadEntries.length>0?"Mayor presencia: "+ciudadEntries[0][0]:"Registra ciudad en aliados para activar"} color={AZUL} bg="#e8f1fb" desc="Ciudades con al menos un convenio confirmado."/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Panel>
+            <PanelTitle sub="¿Qué categorías tienen más convenios y cuáles necesitan refuerzo?">Convenios por categoría</PanelTitle>
+            {catEntries.length>0?(
+              catEntries.map(([cat,n],i)=>(
+                <Barra key={i} label={cat} valor={n+" aliado"+(n!==1?"s":"")} pct={Math.round((n/maxCat)*100)} color={PALETA[i%PALETA.length]}/>
+              ))
+            ):(
+              <div style={{textAlign:"center",color:"#ccc",fontSize:12,padding:"20px 0"}}>Sin convenios confirmados aún.</div>
+            )}
+          </Panel>
+          <Panel>
+            <PanelTitle sub={ciudadEntries.length>0?"¿En qué ciudades tenemos convenios activos?":"Registra ciudad en cada aliado para ver la distribución."}>Distribución geográfica</PanelTitle>
+            {ciudadEntries.length>0?(
+              ciudadEntries.map(([ciudad,n],i)=>(
+                <Barra key={i} label={ciudad} valor={n+" aliado"+(n!==1?"s":"")} pct={Math.round((n/maxCiudad)*100)} color={AZUL}/>
+              ))
+            ):(
+              <div style={{textAlign:"center",color:"#ccc",fontSize:12,padding:"20px 0"}}>Sin datos de ciudad registrados.</div>
+            )}
+          </Panel>
+        </div>
+      </div>
+
+    </div>
+    );
+  })()}
+
+    {/* ══════ TAB CALENDARIO ══════ */}
+  {tab==="calendario"&&(
+    <div>
+      {/* SELECTOR DE SEDE */}
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        {SEDES.map(s=>(
+          <button key={s.id} onClick={()=>setCalSede(s.id)} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(calSede===s.id?PURP:"#ddd"),background:calSede===s.id?PURP:"white",color:calSede===s.id?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>📍 {s.nombre}</button>
+        ))}
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <button onClick={mesAnterior} style={{background:"#f3f3f3",border:"none",width:30,height:30,borderRadius:7,fontSize:15,cursor:"pointer",color:"#555"}}>‹</button>
+          <h2 style={{fontSize:19,fontWeight:800,color:"#222",minWidth:200,textAlign:"center"}}>{MESES[calMes].toUpperCase()} {calAnio}</h2>
+          <button onClick={mesSiguiente} style={{background:"#f3f3f3",border:"none",width:30,height:30,borderRadius:7,fontSize:15,cursor:"pointer",color:"#555"}}>›</button>
+        </div>
+        <button onClick={()=>{setCalMes(6);setCalAnio(2026);}} style={{background:"white",border:"1px solid #ddd",color:"#666",padding:"7px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"}}>Ir a Julio 2026</button>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"170px 1fr",gap:16}}>
+        {/* LEYENDA ALIADOS (propia del calendario) */}
+        <aside>
+          <div style={{border:"1px solid #ddd",borderRadius:8,overflow:"hidden"}}>
+            <div style={{background:"white",padding:"10px 12px",fontWeight:700,fontSize:12,color:"#333",borderBottom:"1px solid #ddd",textAlign:"center"}}>Aliados</div>
+            {calAliados.map(a=>(
+              editAliadoId===a.id?(
+                <input key={a.id} autoFocus value={editAliadoNombre} onChange={e=>setEditAliadoNombre(e.target.value)}
+                  onBlur={guardarEdicionAliado}
+                  onKeyDown={e=>{if(e.key==="Enter")guardarEdicionAliado(); if(e.key==="Escape")setEditAliadoId(null);}}
+                  style={{width:"100%",padding:"9px 12px",background:colorAliado(calAliados,a.id),border:"none",borderBottom:"1px solid rgba(0,0,0,.06)",fontSize:11,fontWeight:700,color:"#333",outline:"2px solid "+PURP,outlineOffset:-2}}/>
+              ):(
+                <div key={a.id} className="cal-aliado-row" style={{padding:"9px 12px",background:colorAliado(calAliados,a.id),borderBottom:"1px solid rgba(0,0,0,.06)",fontSize:11,fontWeight:700,color:"#333",display:"flex",justifyContent:"space-between",alignItems:"center",gap:6}}>
+                  <span onClick={()=>iniciarEdicionAliado(a)} title="Clic para editar el nombre" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer",flex:1}}>{a.nombre}</span>
+                  <span onClick={()=>{if(confirm("Quitar \""+a.nombre+"\" del calendario? Se perderan sus barras registradas."))eliminarAliadoCalendario(a.id);}} title="Quitar del calendario" style={{fontSize:12,opacity:.55,flexShrink:0,cursor:"pointer"}}>✕</span>
+                </div>
+              )
+            ))}
+            {mostrandoNuevoAliadoCal&&(
+              <input autoFocus value={nuevoAliadoCalNombre} onChange={e=>setNuevoAliadoCalNombre(e.target.value)}
+                onBlur={agregarAliadoCalendario}
+                onKeyDown={e=>{if(e.key==="Enter")agregarAliadoCalendario(); if(e.key==="Escape"){setMostrandoNuevoAliadoCal(false);setNuevoAliadoCalNombre("");}}}
+                placeholder="Nombre del aliado..." style={{width:"100%",padding:"9px 12px",border:"none",borderBottom:"1px solid #eee",fontSize:11,fontWeight:600,outline:"2px solid "+PURP,outlineOffset:-2}}/>
+            )}
+            {calAliados.length===0&&!mostrandoNuevoAliadoCal&&<div style={{padding:"9px 12px",fontSize:11,color:"#aaa"}}>Sin aliados</div>}
+          </div>
+          <button onClick={()=>setMostrandoNuevoAliadoCal(true)} style={{width:"100%",marginTop:8,background:"none",border:"1.5px dashed #bbb",borderRadius:7,padding:"7px 0",cursor:"pointer",color:"#bbb",fontSize:11,fontWeight:600}}>+ Aliado</button>
+        </aside>
+
+        {/* GRILLA DEL MES */}
+        <div style={{border:"1.5px solid "+PURP,borderRadius:8,overflow:"hidden"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+            {DIAS_SEM.map(d=>(
+              <div key={d} style={{padding:"10px 6px",textAlign:"center",fontWeight:700,fontSize:12,color:"#333",background:"white",borderBottom:"1px solid #ddd",borderRight:"1px solid #eee"}}>{d}</div>
+            ))}
+          </div>
+          {getCalendarWeeks(calAnio,calMes).map((semana,wi)=>(
+            <div key={wi} style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+              {semana.map((dia,di)=>{
+                const eventosDia=dia?eventosDelDia(dia,calMes,calAnio):[];
+                const claveFestivo=`${calAnio}-${calMes}-${dia}`;
+                const festivo=dia?FESTIVOS_CO[claveFestivo]:null;
+                return(
+                  <div key={di} onClick={()=>dia&&abrirDia(dia)} style={{minHeight:92,padding:"6px 6px",borderRight:"1px solid #eee",borderTop:"1px solid #eee",background:dia?"white":"#fafafa",cursor:dia?"pointer":"default",transition:"background .15s"}}
+                    onMouseEnter={e=>{if(dia)e.currentTarget.style.background="#faf7ff";}}
+                    onMouseLeave={e=>{if(dia)e.currentTarget.style.background="white";}}>
+                    {dia&&<>
+                      <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>{dia}</div>
+                      {festivo&&<div style={{background:"#dc2626",color:"white",fontSize:9,fontWeight:700,borderRadius:4,padding:"2px 4px",marginBottom:3,lineHeight:1.2}}>{festivo}</div>}
+                      <div style={{display:"grid",gap:3}}>
+                        {eventosDia.map(ev=>(
+                          <div key={ev.id} title={ev.tipo==="aliado"?(calAliados.find(a=>a.id===ev.aliadoId)||{}).nombre:ev.texto}
+                            style={{height:7,borderRadius:3,background:ev.tipo==="aliado"?colorAliado(calAliados,ev.aliadoId):"#dc2626"}}/>
+                        ))}
+                      </div>
+                    </>}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:12}}>Sede: {(SEDES.find(s=>s.id===calSede)||{}).nombre} · Haz clic en cualquier dia para agregar o quitar aliados y notas</p>
+    </div>
+  )}
+
+  {/* ══════ TAB DIRECTORIO ══════ */}
+  {tab==="directorio"&&(
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{fontSize:11,fontWeight:700,color:"#999",textTransform:"uppercase",letterSpacing:1,alignSelf:"center",marginRight:4}}>📂 Directorio:</span>
+        <button onClick={()=>setDirVista("confirmados")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="confirmados"?VERDE:"#ddd"),background:dirVista==="confirmados"?VERDE:"white",color:dirVista==="confirmados"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>✅ Confirmados</button>
+        <button onClick={()=>setDirVista("gestion")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="gestion"?NARANJA:"#ddd"),background:dirVista==="gestion"?NARANJA:"white",color:dirVista==="gestion"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>⏳ En Gestión</button>
+        <button onClick={()=>setDirVista("contactos")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="contactos"?AZUL:"#ddd"),background:dirVista==="contactos"?AZUL:"white",color:dirVista==="contactos"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>📞 Contactos</button>
+        <div style={{flex:1}}/>
+        <button onClick={()=>setDirVista("lista")} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(dirVista==="lista"?"#f5b8d3":"#ddd"),background:dirVista==="lista"?"#f5b8d3":"white",color:dirVista==="lista"?"#7a2e4d":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📇 Mi Lista</button>
+        <button onClick={()=>setDirVista("visitas")} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(dirVista==="visitas"?PURP:"#ddd"),background:dirVista==="visitas"?PURP:"white",color:dirVista==="visitas"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
+      </div>
+
+    {/* ══ VISTA: CONFIRMADOS ══ */}
+    {dirVista==="confirmados"&&(()=>{
+      const lista=directorio.filter(a=>a.estado==="Confirmado");
+      return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <h3 style={{fontSize:14,fontWeight:700,color:VERDE,marginBottom:2}}>✅ Convenios Confirmados</h3>
+            <p style={{fontSize:11,color:"#888"}}>Aliados con beneficios activos · {lista.length} convenios</p>
+          </div>
+          <button onClick={()=>abrirModalNuevo("Confirmado")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:VERDE,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
+        </div>
+        <div style={{overflowX:"auto",border:"1.5px solid "+VERDE,borderRadius:8,background:"#f0f7eb"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{background:VERDE}}>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Aliado</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Categoría</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Beneficio</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Responsable</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>Familia</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Comentarios</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.length===0&&(
+                <tr><td colSpan={7} style={{padding:20,textAlign:"center",color:"#aaa",fontSize:12}}>No hay aliados confirmados aún. Haz clic en "+ Agregar aliado" para comenzar.</td></tr>
+              )}
+              {lista.map((a,i)=>(
+                <tr key={a.id} style={{borderBottom:"1px solid #d1e7dd",background:i%2===0?"white":"#f9fdf7"}}>
+                  <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                  <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria}</td>
+                  <td style={{padding:"9px 12px",color:"#555"}}>{a.beneficio||"—"}</td>
+                  <td style={{padding:"9px 12px",color:"#555"}}>{a.responsable||"—"}</td>
+                  <td style={{padding:"9px 12px",textAlign:"center",fontWeight:700,color:a.aplicaFamilia?VERDE:"#bbb"}}>{a.aplicaFamilia?"✓ Sí":"✗ No"}</td>
+                  <td style={{padding:"9px 12px",color:"#555",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.comentarios||"—"}</td>
+                  <td style={{padding:"9px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
+                    <button onClick={()=>abrirModalEditar(a)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",marginRight:4,fontWeight:600}}>✏️</button>
+                    <button onClick={()=>setModalEliminar(a.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:10}}>Haz clic en ✏️ para editar · 🗑️ para eliminar · Los cambios se guardan automáticamente</p>
+      </div>
+      );
+    })()}
+
+
+    {/* ══ VISTA: EN GESTIÓN ══ */}
+    {dirVista==="gestion"&&(()=>{
+      const lista=directorio.filter(a=>a.estado==="En Gestión");
+      const hoyMs=new Date().getTime();
+      const semaforo=(fechaUlt)=>{
+        if(!fechaUlt)return{color:"#bbb",label:"Sin contacto"};
+        const dias=Math.floor((hoyMs-new Date(fechaUlt).getTime())/(1000*60*60*24));
+        if(dias<=7) return{color:"#22c55e",label:`Hace ${dias}d`};
+        if(dias<=20)return{color:"#f59e0b",label:`Hace ${dias}d`};
+        return{color:"#ef4444",label:`Hace ${dias}d`};
+      };
+      return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <h3 style={{fontSize:14,fontWeight:700,color:NARANJA,marginBottom:2}}>⏳ Convenios en Gestión</h3>
+            <p style={{fontSize:11,color:"#888"}}>Alianzas en proceso de negociación · {lista.length} en trámite</p>
+          </div>
+          <button onClick={()=>abrirModalNuevo("En Gestión")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:NARANJA,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
+        </div>
+        <div style={{overflowX:"auto",border:"1.5px solid "+NARANJA,borderRadius:8,background:"#fff7f0"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{background:NARANJA}}>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Aliado</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Categoría</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Beneficio propuesto</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>Estado</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>🟢 Seguimiento</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Comentarios</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.length===0&&(
+                <tr><td colSpan={7} style={{padding:20,textAlign:"center",color:"#aaa",fontSize:12}}>No hay aliados en gestión. Haz clic en "+ Agregar aliado" para comenzar.</td></tr>
+              )}
+              {lista.map((a,i)=>{
+                const sem=semaforo(a.fechaUltimoContacto);
+                return(
+                <tr key={a.id} style={{borderBottom:"1px solid #ffe0b2",background:i%2===0?"white":"#fffbf7"}}>
+                  <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                  <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria}</td>
+                  <td style={{padding:"9px 12px",color:"#555"}}>{a.beneficio||"—"}</td>
+                  <td style={{padding:"9px 12px",textAlign:"center"}}>
+                    <span style={{background:"#fff3cd",color:"#856404",padding:"3px 8px",borderRadius:3,fontSize:10,fontWeight:700}}>{a.estadoNegociacion||"Pendiente"}</span>
+                  </td>
+                  <td style={{padding:"9px 12px",textAlign:"center"}}>
+                    <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:10,fontWeight:600,color:sem.color}}>
+                      <span style={{width:8,height:8,borderRadius:"50%",background:sem.color,display:"inline-block"}}/>
+                      {sem.label}
+                    </span>
+                  </td>
+                  <td style={{padding:"9px 12px",color:"#555",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.comentarios||"—"}</td>
+                  <td style={{padding:"9px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
+                    <button onClick={()=>abrirModalEditar(a)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",marginRight:4,fontWeight:600}}>✏️</button>
+                    <button onClick={()=>setModalEliminar(a.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                  </td>
+                </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:10}}>🟢 &lt;7d · 🟡 7-20d · 🔴 +20d sin contacto · Actualiza "Último contacto" en el modal de edición</p>
+      </div>
+      );
+    })()}
+
+
+    {/* ══ VISTA: CONTACTOS ══ */}
+    {dirVista==="contactos"&&(()=>{
+      const lista=directorio.filter(a=>a.estado==="Contacto");
+      return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <h3 style={{fontSize:14,fontWeight:700,color:AZUL,marginBottom:2}}>📞 Directorio de Contactos</h3>
+            <p style={{fontSize:11,color:"#888"}}>Base de datos con teléfonos y contactos directos · {lista.length} empresas</p>
+          </div>
+          <button onClick={()=>abrirModalNuevo("Contacto")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar contacto</button>
+        </div>
+        <div style={{overflowX:"auto",border:"1.5px solid "+AZUL,borderRadius:8,background:"#e8f1fb"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+            <thead>
+              <tr style={{background:AZUL}}>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Empresa</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Categoría</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Teléfono</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Contacto</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Beneficio</th>
+                <th style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>Comentarios</th>
+                <th style={{textAlign:"center",padding:"10px 12px",fontWeight:700,color:"white"}}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lista.length===0&&(
+                <tr><td colSpan={7} style={{padding:20,textAlign:"center",color:"#aaa",fontSize:12}}>No hay contactos registrados. Haz clic en "+ Agregar contacto" para comenzar.</td></tr>
+              )}
+              {lista.map((a,i)=>(
+                <tr key={a.id} style={{borderBottom:"1px solid #c8dff5",background:i%2===0?"white":"#f4f8fd"}}>
+                  <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                  <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria}</td>
+                  <td style={{padding:"9px 12px",color:AZUL,fontWeight:600}}>{a.telefono||"—"}</td>
+                  <td style={{padding:"9px 12px",color:"#555"}}>{a.contacto}</td>
+                  <td style={{padding:"9px 12px",color:"#555"}}>{a.beneficio||"—"}</td>
+                  <td style={{padding:"9px 12px",color:"#555",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.comentarios||"—"}</td>
+                  <td style={{padding:"9px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
+                    <button onClick={()=>abrirModalEditar(a)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",marginRight:4,fontWeight:600}}>✏️</button>
+                    <button onClick={()=>setModalEliminar(a.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:10}}>Contacta directamente a estas empresas · ✏️ editar · 🗑️ eliminar</p>
+      </div>
+      );
+    })()}
+
+
+
+    {dirVista==="lista"&&(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h3 style={{fontSize:14,fontWeight:700,color:"#333",marginBottom:2}}>Directorio de Aliados</h3>
+          <p style={{fontSize:11,color:"#888"}}>{directorio.length} aliados registrados · Haz clic en cualquier celda para editarla</p>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <input className="inp" value={dirFiltro} onChange={e=>setDirFiltro(e.target.value)} placeholder="Buscar por empresa, contacto, categoria o ciudad..." style={{width:280}}/>
+          <button onClick={agregarFilaDirectorio} style={{background:AZUL,color:"white",border:"none",padding:"9px 16px",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>+ Agregar Aliado</button>
+        </div>
+      </div>
+
+      <div style={{overflowX:"auto",border:"1.5px solid #f5b8d3",borderRadius:8,background:"#fff5f9"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:"#fce4ef"}}>
+              {DIRECTORIO_COLS.map(c=>(
+                <th key={c.key} style={{textAlign:"left",padding:"9px 10px",fontSize:10,fontWeight:700,color:"#9d4a72",textTransform:"uppercase",letterSpacing:".5px",borderBottom:"1px solid #f5b8d3",whiteSpace:"nowrap"}}>{c.label}</th>
+              ))}
+              <th style={{padding:"9px 10px",borderBottom:"1px solid #f5b8d3"}}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {directorio.filter(r=>{
+              if(!dirFiltro.trim()) return true;
+              const q=dirFiltro.toLowerCase();
+              return [r.empresa,r.contacto,r.categoria,r.ciudad,r.correo,r.telefono].some(v=>(v||"").toLowerCase().includes(q));
+            }).map(r=>(
+              <tr key={r.id} style={{borderBottom:"1px solid #f9d9e6"}}>
+                {DIRECTORIO_COLS.map(c=>(
+                  <td key={c.key} style={{padding:0}}>
+                    <input value={r[c.key]} onChange={e=>editarDirCelda(r.id,c.key,e.target.value)}
+                      style={{width:"100%",minWidth:110,padding:"8px 10px",border:"none",background:"transparent",fontSize:12,color:"#333",outline:"none"}}
+                      onFocus={e=>e.target.style.background="#fce4ef"}
+                      onBlur={e=>e.target.style.background="transparent"}/>
+                  </td>
+                ))}
+                <td style={{padding:"4px 8px",textAlign:"center"}}>
+                  <button className="btn-danger" onClick={()=>{if(confirm("Eliminar "+(r.empresa||"este aliado")+" del directorio?"))eliminarFilaDirectorio(r.id);}}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+            {directorio.length===0&&(
+              <tr><td colSpan={DIRECTORIO_COLS.length+1} style={{padding:20,textAlign:"center",color:"#bbb",fontSize:12}}>No hay aliados en el directorio</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:12}}>Todos los campos son editables directamente en la tabla</p>
+    </div>
+    )}
+
+    {dirVista==="visitas"&&(()=>{
+      const aliadoSel=directorio.find(d=>d.id===visSelAliadoId)||directorio[0]||null;
+      const repMes=aliadoSel?reporteMensual(aliadoSel.id,visMes,visAnio):null;
+      const prevM=mesAnteriorDe(visMes,visAnio);
+      const repAnt=aliadoSel?reporteMensual(aliadoSel.id,prevM.mes,prevM.anio):null;
+
+      // Indicadores globales del mes (todos los aliados)
+      const repGlobal=directorio.reduce((acc,d)=>{
+        const r=reporteMensual(d.id,visMes,visAnio);
+        acc.visitas+=r.totalVisitas; acc.charlas+=r.totalCharlas; acc.colaboradores+=r.totalColaboradores; acc.afiliaciones+=r.totalAfiliaciones;
+        return acc;
+      },{visitas:0,charlas:0,colaboradores:0,afiliaciones:0});
+
+      const actividadesPorTipo=TIPOS_ACTIVIDAD.map(t=>({
+        tipo:t,
+        cant:directorio.reduce((s,d)=>s+visitasDeMes(d.id,visMes,visAnio).filter(v=>v.tipoActividad===t).length,0)
+      })).filter(x=>x.cant>0);
+
+      const ranking=directorio.map(d=>({d,r:reporteMensual(d.id,visMes,visAnio)}))
+        .sort((a,b)=>b.r.totalAfiliaciones-a.r.totalAfiliaciones||b.r.totalColaboradores-a.r.totalColaboradores)
+        .slice(0,8);
+
+      const hoyStr=new Date().toISOString().slice(0,10);
+      const proximas=visitas.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,6);
+
+      // Tendencia: ultimos 6 meses (todos los aliados)
+      const tendencia=[];
+      for(let i=5;i>=0;i--){
+        let m=visMes-i, a=visAnio;
+        while(m<0){m+=12;a-=1;}
+        const total=directorio.reduce((s,d)=>s+visitasDeMes(d.id,m,a).length,0);
+        tendencia.push({m,a,total});
+      }
+      const maxTend=Math.max(1,...tendencia.map(t=>t.total));
+
+      const visSel=aliadoSel?visitasDe(aliadoSel.id):[];
+
+      return(
+      <div>
+        {/* DASHBOARD DE INDICADORES */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:10}}>
+          <h3 style={{fontSize:14,fontWeight:700,color:"#333"}}>Dashboard de Indicadores</h3>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>{ if(visMes===0){setVisMes(11);setVisAnio(a=>a-1);} else setVisMes(m=>m-1); }} style={{background:"#f3f3f3",border:"none",width:26,height:26,borderRadius:6,cursor:"pointer",color:"#555"}}>‹</button>
+            <span style={{fontSize:12,fontWeight:700,minWidth:130,textAlign:"center"}}>{MESES[visMes]} {visAnio}</span>
+            <button onClick={()=>{ if(visMes===11){setVisMes(0);setVisAnio(a=>a+1);} else setVisMes(m=>m+1); }} style={{background:"#f3f3f3",border:"none",width:26,height:26,borderRadius:6,cursor:"pointer",color:"#555"}}>›</button>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:18}}>
+          {[
+            {label:"Aliados activos",val:directorio.length,color:AZUL,icon:"🤝"},
+            {label:"Visitas en el mes",val:repGlobal.visitas,color:PURP,icon:"📍"},
+            {label:"Charlas realizadas",val:repGlobal.charlas,color:"#c2703d",icon:"🎤"},
+            {label:"Colaboradores impactados",val:repGlobal.colaboradores,color:VERDE,icon:"👥"},
+            {label:"Afiliaciones del mes",val:repGlobal.afiliaciones,color:"#9d4a72",icon:"✅"},
+          ].map((k,i)=>(
+            <div key={i} style={{background:"white",border:"1px solid #e5e5e5",borderRadius:10,padding:"12px 14px"}}>
+              <div style={{fontSize:18}}>{k.icon}</div>
+              <div style={{fontSize:20,fontWeight:800,color:k.color}}>{k.val}</div>
+              <div style={{fontSize:10,color:"#999"}}>{k.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:18}}>
+          {/* Actividades por tipo */}
+          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:10}}>Actividades por tipo</div>
+            {actividadesPorTipo.length===0&&<p style={{fontSize:11,color:"#bbb"}}>Sin actividades registradas este mes</p>}
+            {actividadesPorTipo.map(a=>(
+              <div key={a.tipo} style={{marginBottom:6}}>
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#555",marginBottom:2}}><span>{a.tipo}</span><span>{a.cant}</span></div>
+                <div style={{height:6,background:"#eee",borderRadius:3,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:(a.cant/Math.max(1,...actividadesPorTipo.map(x=>x.cant))*100)+"%",background:PURP}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Tendencia mensual */}
+          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:10}}>Tendencia de visitas (ultimos 6 meses)</div>
+            <div style={{display:"flex",alignItems:"flex-end",gap:8,height:90}}>
+              {tendencia.map((t,i)=>(
+                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
+                  <div style={{fontSize:10,fontWeight:700,color:"#555"}}>{t.total}</div>
+                  <div style={{width:"70%",height:(t.total/maxTend*70)+"px",background:"linear-gradient(180deg,"+PURP+",#a78bfa)",borderRadius:"4px 4px 0 0",minHeight:2}}/>
+                  <div style={{fontSize:9,color:"#999",marginTop:3}}>{MESES[t.m].slice(0,3)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+          {/* Ranking de aliados */}
+          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:10}}>🏆 Ranking de aliados (por afiliaciones)</div>
+            {ranking.filter(x=>x.r.totalVisitas>0).length===0&&<p style={{fontSize:11,color:"#bbb"}}>Sin datos este mes</p>}
+            {ranking.filter(x=>x.r.totalVisitas>0).map((x,i)=>(
+              <div key={x.d.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #f5f5f5",fontSize:12}}>
+                <span style={{color:"#333",fontWeight:600}}>{i+1}. {x.d.empresa}</span>
+                <span style={{color:"#666"}}>{x.r.totalAfiliaciones} afil. · {x.r.totalColaboradores} colab.</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Calendario de proximas visitas */}
+          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:10}}>📅 Proximas visitas programadas</div>
+            {proximas.length===0&&<p style={{fontSize:11,color:"#bbb"}}>No hay visitas programadas a futuro</p>}
+            {proximas.map(v=>{
+              const d=directorio.find(x=>x.id===v.aliadoId);
+              return(<div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #f5f5f5",fontSize:12,cursor:"pointer"}}>
+                <span style={{color:"#333",fontWeight:600}}>{d?d.empresa:"?"} — {v.tipoActividad}</span>
+                <span style={{color:"#999"}}>{v.fecha}</span>
+              </div>);
+            })}
+          </div>
+        </div>
+
+        <div style={{borderTop:"1px solid #eee",paddingTop:16,marginBottom:12}}>
+          <h3 style={{fontSize:14,fontWeight:700,color:"#333",marginBottom:10}}>Ficha e Historial por Aliado</h3>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+            {directorio.map(d=>(
+              <button key={d.id} onClick={()=>setVisSelAliadoId(d.id)} style={{padding:"6px 12px",borderRadius:20,border:"1.5px solid "+(aliadoSel&&aliadoSel.id===d.id?PURP:"#ddd"),background:aliadoSel&&aliadoSel.id===d.id?PURP:"white",color:aliadoSel&&aliadoSel.id===d.id?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>{d.empresa||"(sin nombre)"}</button>
+            ))}
+          </div>
+
+          {aliadoSel&&repMes&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <span style={{fontSize:13,fontWeight:700,color:"#333"}}>{aliadoSel.empresa} · Reporte de {MESES[visMes]} {visAnio}</span>
+                <button onClick={()=>abrirNuevaVisita(aliadoSel.id)} style={{background:PURP,color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Registrar Visita</button>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:16}}>
+                {[
+                  {label:"Visitas",val:repMes.totalVisitas,ant:repAnt.totalVisitas},
+                  {label:"Actividades",val:repMes.totalActividades,ant:repAnt.totalActividades},
+                  {label:"Charlas",val:repMes.totalCharlas,ant:repAnt.totalCharlas},
+                  {label:"Colaboradores atendidos",val:repMes.totalColaboradores,ant:repAnt.totalColaboradores},
+                  {label:"Afiliaciones",val:repMes.totalAfiliaciones,ant:repAnt.totalAfiliaciones},
+                  {label:"Evidencias",val:repMes.totalFotos,ant:repAnt.totalFotos},
+                ].map((k,i)=>{
+                  const d=deltaPct(k.val,k.ant);
+                  return(<div key={i} style={{background:"#faf7ff",borderRadius:8,padding:"10px",textAlign:"center"}}>
+                    <div style={{fontSize:17,fontWeight:800,color:PURP}}>{k.val}</div>
+                    <div style={{fontSize:9,color:"#999",marginBottom:2}}>{k.label}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:d>=0?VERDE:"#dc2626"}}>{d>=0?"▲":"▼"} {Math.abs(d)}% vs mes anterior</div>
+                  </div>);
+                })}
+              </div>
+
+              {Object.keys(repMes.materiales).length>0&&(
+                <div style={{fontSize:11,color:"#666",marginBottom:14}}>
+                  <b>Material entregado este mes:</b> {Object.entries(repMes.materiales).map(([t,c])=>`${t} (${c})`).join(" · ")}
+                </div>
+              )}
+
+              <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:8}}>Historial de visitas ({visSel.length})</div>
+              <div style={{display:"grid",gap:8}}>
+                {visSel.map(v=>(
+                  <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{v.fecha} · {v.tipoActividad} {v.charla&&v.charla.realizada?"🎤":""} {v.fotos&&v.fotos.length>0?"📷"+v.fotos.length:""}</div>
+                      <div style={{fontSize:11,color:"#888"}}>{v.ciudad}{v.site?" · "+v.site:""} {v.responsable?"· "+v.responsable:""}</div>
+                    </div>
+                    <span style={{background:COLOR_ESTADO[v.estado]||"#ddd",padding:"3px 10px",borderRadius:20,fontSize:10,fontWeight:700,color:"#333"}}>{v.estado}</span>
+                  </div>
+                ))}
+                {visSel.length===0&&<p style={{fontSize:11,color:"#bbb"}}>Este aliado aun no tiene visitas registradas</p>}
+              </div>
+            </div>
+          )}
+          {directorio.length===0&&<p style={{fontSize:12,color:"#bbb"}}>Agrega aliados en la pestaña "Lista de Aliados" para poder registrar visitas.</p>}
+        </div>
+      </div>
+      );
+    })()}
+    </div>
+  )}
+
+  </div>
+  {/* ══ MODAL EDICIÓN DE ALIADO ══ */}
+  {modalAliado&&(
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:560,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+        <h3 style={{fontSize:15,fontWeight:700,color:"#333"}}>{aliadoEditando?"✏️ Editar Aliado":"➕ Nuevo Aliado"}</h3>
+        <button onClick={cerrarModal} style={{border:"none",background:"#f5f5f5",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:"#666"}}>✕</button>
+      </div>
+
+      {/* Fila 1: Empresa y Estado */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Empresa *</label>
+          <input value={aliadoForm.empresa||""} onChange={e=>setAliadoForm(p=>({...p,empresa:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Nombre del aliado"/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Estado</label>
+          <select value={aliadoForm.estado||"Confirmado"} onChange={e=>setAliadoForm(p=>({...p,estado:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}>
+            {ESTADOS_ALIADO.map(e=><option key={e} value={e}>{e}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Fila 2: Contacto y Categoría */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Contacto</label>
+          <input value={aliadoForm.contacto||""} onChange={e=>setAliadoForm(p=>({...p,contacto:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Nombre del contacto"/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Categoría</label>
+          <input value={aliadoForm.categoria||""} onChange={e=>setAliadoForm(p=>({...p,categoria:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Ej: Educación, Bienestar..."/>
+        </div>
+      </div>
+
+      {/* Fila 3: Correo y Teléfono */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Correo</label>
+          <input value={aliadoForm.correo||""} onChange={e=>setAliadoForm(p=>({...p,correo:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="correo@ejemplo.com"/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Teléfono</label>
+          <input value={aliadoForm.telefono||""} onChange={e=>setAliadoForm(p=>({...p,telefono:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="3001234567"/>
+        </div>
+      </div>
+
+      {/* Fila 4: Ciudad y Responsable */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Ciudad</label>
+          <input value={aliadoForm.ciudad||""} onChange={e=>setAliadoForm(p=>({...p,ciudad:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Bogotá, Barranquilla..."/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Responsable</label>
+          <input value={aliadoForm.responsable||""} onChange={e=>setAliadoForm(p=>({...p,responsable:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Quien gestiona el convenio"/>
+        </div>
+      </div>
+
+      {/* Fila 5: Beneficio */}
+      <div style={{marginBottom:10}}>
+        <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Beneficio</label>
+        <input value={aliadoForm.beneficio||""} onChange={e=>setAliadoForm(p=>({...p,beneficio:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Ej: 20% DTO en planes de membresía"/>
+      </div>
+
+      {/* Fila 6: Cómo aplica */}
+      <div style={{marginBottom:10}}>
+        <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Cómo aplica</label>
+        <input value={aliadoForm.comoAplica||""} onChange={e=>setAliadoForm(p=>({...p,comoAplica:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Instrucciones para acceder al beneficio"/>
+      </div>
+
+      {/* Fila 7: Fecha inicio, Meta, Fecha último contacto */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Inicio convenio</label>
+          <input type="date" value={aliadoForm.fechaInicioConvenio||""} onChange={e=>setAliadoForm(p=>({...p,fechaInicioConvenio:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Meta (afiliaciones)</label>
+          <input type="number" min="0" value={aliadoForm.meta||0} onChange={e=>setAliadoForm(p=>({...p,meta:Number(e.target.value)}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Último contacto</label>
+          <input type="date" value={aliadoForm.fechaUltimoContacto||""} onChange={e=>setAliadoForm(p=>({...p,fechaUltimoContacto:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}/>
+        </div>
+      </div>
+
+      {/* Fila 8: Aplica familia + Estado negociación (si aplica) */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,paddingTop:18}}>
+          <input type="checkbox" id="chkFamilia" checked={!!aliadoForm.aplicaFamilia} onChange={e=>setAliadoForm(p=>({...p,aplicaFamilia:e.target.checked}))} style={{width:14,height:14}}/>
+          <label htmlFor="chkFamilia" style={{fontSize:12,color:"#555",cursor:"pointer"}}>Aplica a familia</label>
+        </div>
+        {aliadoForm.estado==="En Gestión"&&(
+          <div>
+            <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Estado negociación</label>
+            <select value={aliadoForm.estadoNegociacion||"Pendiente"} onChange={e=>setAliadoForm(p=>({...p,estadoNegociacion:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}>
+              {ESTADOS_NEGOCIACION.map(e=><option key={e} value={e}>{e}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Comentarios */}
+      <div style={{marginBottom:16}}>
+        <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Comentarios / Seguimiento</label>
+        <textarea value={aliadoForm.comentarios||""} onChange={e=>setAliadoForm(p=>({...p,comentarios:e.target.value}))} rows={3} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12,resize:"vertical"}} placeholder="Notas de seguimiento, observaciones..."/>
+      </div>
+
+      {/* Descripción corta (para Revista) */}
+      <div style={{marginBottom:16}}>
+        <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Descripción corta <span style={{fontWeight:400,color:"#aaa"}}>(visible en Revista de Beneficios)</span></label>
+        <input value={aliadoForm.descripcionCorta||""} onChange={e=>setAliadoForm(p=>({...p,descripcionCorta:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Ej: Descuentos exclusivos en cursos de inglés para colaboradores y familia"/>
+      </div>
+
+      {/* Logo (para Revista) */}
+      <div style={{marginBottom:16}}>
+        <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Logo del aliado <span style={{fontWeight:400,color:"#aaa"}}>(opcional — visible en Revista)</span></label>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {aliadoForm.logo?(
+            <img src={aliadoForm.logo} alt="logo" style={{width:48,height:48,objectFit:"contain",borderRadius:8,border:"1px solid #ddd",background:"white",padding:4}}/>
+          ):(
+            <div style={{width:48,height:48,borderRadius:8,background:"#f0f7eb",border:"1px solid #d1e7dd",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:"#3B6D11"}}>
+              {(aliadoForm.empresa||"?")[0].toUpperCase()}
+            </div>
+          )}
+          <div>
+            <input type="file" accept="image/*" style={{display:"none"}} id="logoInput" onChange={e=>{
+              const file=e.target.files[0];
+              if(!file)return;
+              const canvas=document.createElement("canvas");
+              const img=new Image();
+              img.onload=()=>{
+                const MAX=200;
+                const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+                canvas.width=img.width*ratio;
+                canvas.height=img.height*ratio;
+                canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+                setAliadoForm(p=>({...p,logo:canvas.toDataURL("image/png",0.9)}));
+              };
+              img.src=URL.createObjectURL(file);
+              e.target.value="";
+            }}/>
+            <label htmlFor="logoInput" style={{fontSize:11,padding:"6px 12px",borderRadius:6,border:"1px solid #ddd",background:"white",cursor:"pointer",color:"#555",display:"inline-block"}}>📁 Subir logo</label>
+            {aliadoForm.logo&&<button onClick={()=>setAliadoForm(p=>({...p,logo:""}))} style={{marginLeft:8,fontSize:11,padding:"6px 10px",borderRadius:6,border:"1px solid #fee2e2",background:"#fff1f2",color:"#dc2626",cursor:"pointer"}}>✕ Quitar</button>}
+            <div style={{fontSize:10,color:"#bbb",marginTop:4}}>Se redimensionará automáticamente a 200×200px.</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Historial de estados (solo lectura) */}
+      {(aliadoForm.historialEstados||[]).length>0&&(
+        <div style={{marginBottom:16,background:"#f9fafb",borderRadius:6,padding:10}}>
+          <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:6}}>📋 Historial de estados</div>
+          {(aliadoForm.historialEstados||[]).map((h,i)=>(
+            <div key={i} style={{fontSize:11,color:"#666",marginBottom:3}}>
+              <span style={{fontWeight:600,color:"#333"}}>{h.estado}</span> · {h.fecha}{h.responsable?` · ${h.responsable}`:""}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Botones */}
+      <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+        <button onClick={cerrarModal} style={{padding:"8px 16px",borderRadius:6,border:"1px solid #ddd",background:"white",fontSize:12,cursor:"pointer",color:"#666"}}>Cancelar</button>
+        <button onClick={guardarAliado} disabled={!aliadoForm.empresa||!aliadoForm.empresa.trim()} style={{padding:"8px 20px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer",opacity:(!aliadoForm.empresa||!aliadoForm.empresa.trim())?.5:1}}>
+          {aliadoEditando?"Guardar cambios":"Crear aliado"}
+        </button>
+      </div>
+    </div>
+  </div>
+  )}
+
+  {/* ══ MODAL CONFIRMACIÓN ELIMINAR ══ */}
+  {modalEliminar&&(
+  <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1001,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+    <div style={{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:360,textAlign:"center",boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+      <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
+      <h3 style={{fontSize:14,fontWeight:700,color:"#333",marginBottom:8}}>¿Eliminar este aliado?</h3>
+      <p style={{fontSize:12,color:"#666",marginBottom:20}}>Esta acción no se puede deshacer. Se eliminará el registro y toda su información.</p>
+      <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+        <button onClick={()=>setModalEliminar(null)} style={{padding:"8px 20px",borderRadius:6,border:"1px solid #ddd",background:"white",fontSize:12,cursor:"pointer",color:"#666"}}>Cancelar</button>
+        <button onClick={()=>eliminarAliado(modalEliminar)} style={{padding:"8px 20px",borderRadius:6,border:"none",background:"#dc2626",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>Eliminar</button>
+      </div>
+    </div>
+  </div>
+  )}
+
+  {/* ══════ TAB GALERÍA ══════ */}
+  {tab==="galeria"&&(()=>{
+    const TIPOS_ACT_GAL=["Stand","Activación","Charla","Entrega de material","Evento general","Otro"];
+    const MESES_GAL=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+    // Filtros aplicados
+    const galeriaFiltrada=galeria.filter(f=>{
+      if(galeriaFiltroAliado&&f.aliadoId!==galeriaFiltroAliado)return false;
+      if(galeriaFiltroMes&&(!f.fecha||new Date(f.fecha).getMonth()!==parseInt(galeriaFiltroMes)))return false;
+      if(galeriaFiltroTipo&&f.tipoActividad!==galeriaFiltroTipo)return false;
+      return true;
+    });
+
+    // Índice de foto activa en lightbox (sobre galeriaFiltrada)
+    const idxActivo=galeriaLightbox!==null?galeriaFiltrada.findIndex(f=>f.id===galeriaLightbox):-1;
+
+    // Helpers
+    const nombreAliado=(id)=>{
+      if(!id)return"General";
+      const a=directorio.find(x=>x.id===id);
+      return a?a.empresa:"General";
+    };
+
+    const comprimirImagen=(file,cb)=>{
+      const canvas=document.createElement("canvas");
+      const img=new Image();
+      img.onload=()=>{
+        const MAX=800;
+        const ratio=Math.min(MAX/img.width,MAX/img.height,1);
+        canvas.width=img.width*ratio;
+        canvas.height=img.height*ratio;
+        canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+        cb(canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src=URL.createObjectURL(file);
+    };
+
+    const abrirFormNuevo=()=>{
+      setGaleriaForm({titulo:"",descripcion:"",aliadoId:"",fecha:new Date().toISOString().slice(0,10),tipoActividad:"Stand",dataUrl:""});
+      setGaleriaModal(true);
+    };
+
+    const guardarFoto=()=>{
+      if(!galeriaForm.dataUrl||!galeriaForm.titulo.trim())return;
+      const nueva={...galeriaForm,id:"foto_"+Date.now()};
+      setGaleria(p=>[nueva,...p]);
+      setGaleriaModal(false);
+    };
+
+    const eliminarFoto=(id)=>{
+      if(!window.confirm("¿Eliminar esta fotografía?"))return;
+      setGaleria(p=>p.filter(f=>f.id!==id));
+      if(galeriaLightbox===id)setGaleriaLightbox(null);
+    };
+
+    const navLightbox=(dir)=>{
+      if(galeriaFiltrada.length===0)return;
+      const nuevo=(idxActivo+dir+galeriaFiltrada.length)%galeriaFiltrada.length;
+      setGaleriaLightbox(galeriaFiltrada[nuevo].id);
+    };
+
+    const fotoActiva=idxActivo>=0?galeriaFiltrada[idxActivo]:null;
+
+    return(
+    <div>
+      {/* Encabezado */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <h2 style={{fontSize:16,fontWeight:700,color:"#333",marginBottom:2}}>🖼️ Galería de Actividades</h2>
+          <p style={{fontSize:11,color:"#888"}}>{galeria.length} foto{galeria.length!==1?"s":""} registrada{galeria.length!==1?"s":""}{galeriaFiltrada.length!==galeria.length?" · "+galeriaFiltrada.length+" visible"+(galeriaFiltrada.length!==1?"s":"")+" con filtros":""}</p>
+        </div>
+        <button onClick={abrirFormNuevo} style={{padding:"8px 16px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar foto</button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,padding:"12px 14px",background:"#f9fafb",borderRadius:8,border:"1px solid #e5e7eb"}}>
+        <select value={galeriaFiltroAliado} onChange={e=>setGaleriaFiltroAliado(e.target.value)} style={{fontSize:11,padding:"5px 10px",borderRadius:6,border:"1px solid #ddd",background:"white",color:"#555"}}>
+          <option value="">Todos los aliados</option>
+          <option value="">— General —</option>
+          {directorio.filter(a=>a.estado==="Confirmado"||a.estado==="En Gestión").sort((a,b)=>a.empresa.localeCompare(b.empresa)).map(a=>(
+            <option key={a.id} value={a.id}>{a.empresa}</option>
+          ))}
+        </select>
+        <select value={galeriaFiltroMes} onChange={e=>setGaleriaFiltroMes(e.target.value)} style={{fontSize:11,padding:"5px 10px",borderRadius:6,border:"1px solid #ddd",background:"white",color:"#555"}}>
+          <option value="">Todos los meses</option>
+          {MESES_GAL.map((m,i)=><option key={i} value={i}>{m}</option>)}
+        </select>
+        <select value={galeriaFiltroTipo} onChange={e=>setGaleriaFiltroTipo(e.target.value)} style={{fontSize:11,padding:"5px 10px",borderRadius:6,border:"1px solid #ddd",background:"white",color:"#555"}}>
+          <option value="">Todos los tipos</option>
+          {TIPOS_ACT_GAL.map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
+        {(galeriaFiltroAliado||galeriaFiltroMes||galeriaFiltroTipo)&&(
+          <button onClick={()=>{setGaleriaFiltroAliado("");setGaleriaFiltroMes("");setGaleriaFiltroTipo("");}} style={{fontSize:11,padding:"5px 10px",borderRadius:6,border:"1px solid #ddd",background:"white",color:"#888",cursor:"pointer"}}>✕ Limpiar filtros</button>
+        )}
+      </div>
+
+      {/* Grid de miniaturas */}
+      {galeriaFiltrada.length>0?(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:12}}>
+          {galeriaFiltrada.map((f,i)=>(
+            <div key={f.id} style={{borderRadius:10,overflow:"hidden",border:"1px solid #e5e7eb",background:"white",boxShadow:"0 1px 3px rgba(0,0,0,.06)",cursor:"pointer"}} onClick={()=>setGaleriaLightbox(f.id)}>
+              <div style={{position:"relative",paddingBottom:"66%",background:"#f0f0f0"}}>
+                <img src={f.dataUrl} alt={f.titulo} style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
+                <div style={{position:"absolute",top:6,right:6,display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                  <button onClick={()=>eliminarFoto(f.id)} style={{width:22,height:22,borderRadius:"50%",border:"none",background:"rgba(0,0,0,.45)",color:"white",fontSize:10,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                </div>
+              </div>
+              <div style={{padding:"8px 10px"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#333",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.titulo}</div>
+                <div style={{fontSize:10,color:"#888",marginTop:2}}>{nombreAliado(f.aliadoId)}{f.tipoActividad?" · "+f.tipoActividad:""}</div>
+                {f.fecha&&<div style={{fontSize:10,color:"#bbb",marginTop:1}}>{new Date(f.fecha).toLocaleDateString("es-CO",{day:"numeric",month:"short",year:"numeric"})}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      ):(
+        <div style={{textAlign:"center",padding:"48px 20px",color:"#bbb"}}>
+          <div style={{fontSize:40,marginBottom:12}}>🖼️</div>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>
+            {galeria.length===0?"Sin fotos registradas aún":"Sin resultados con los filtros aplicados"}
+          </div>
+          <div style={{fontSize:12}}>{galeria.length===0?"Haz clic en '+ Agregar foto' para comenzar a documentar las actividades.":"Intenta con otros filtros o limpialos."}</div>
+        </div>
+      )}
+
+      {/* ── LIGHTBOX ── */}
+      {galeriaLightbox!==null&&fotoActiva&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:2000,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}} onClick={()=>setGaleriaLightbox(null)}>
+          {/* Imagen */}
+          <div style={{position:"relative",maxWidth:"90vw",maxHeight:"75vh"}} onClick={e=>e.stopPropagation()}>
+            <img src={fotoActiva.dataUrl} alt={fotoActiva.titulo} style={{maxWidth:"90vw",maxHeight:"75vh",objectFit:"contain",borderRadius:8,display:"block"}}/>
+            {/* Navegar ← */}
+            {galeriaFiltrada.length>1&&<button onClick={e=>{e.stopPropagation();navLightbox(-1);}} style={{position:"absolute",left:-48,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.15)",border:"none",color:"white",fontSize:24,width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>}
+            {/* Navegar → */}
+            {galeriaFiltrada.length>1&&<button onClick={e=>{e.stopPropagation();navLightbox(1);}} style={{position:"absolute",right:-48,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.15)",border:"none",color:"white",fontSize:24,width:36,height:36,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>}
+          </div>
+          {/* Info debajo */}
+          <div style={{marginTop:16,textAlign:"center",color:"white",maxWidth:500}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{fotoActiva.titulo}</div>
+            {fotoActiva.descripcion&&<div style={{fontSize:12,color:"rgba(255,255,255,.75)",marginBottom:4}}>{fotoActiva.descripcion}</div>}
+            <div style={{fontSize:11,color:"rgba(255,255,255,.5)"}}>{nombreAliado(fotoActiva.aliadoId)}{fotoActiva.tipoActividad?" · "+fotoActiva.tipoActividad:""}{fotoActiva.fecha?" · "+new Date(fotoActiva.fecha).toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"}):""}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,.35)",marginTop:8}}>{idxActivo+1} de {galeriaFiltrada.length} · Clic fuera para cerrar</div>
+          </div>
+          {/* Cerrar */}
+          <button onClick={()=>setGaleriaLightbox(null)} style={{position:"fixed",top:16,right:20,background:"rgba(255,255,255,.15)",border:"none",color:"white",fontSize:20,width:36,height:36,borderRadius:"50%",cursor:"pointer"}}>✕</button>
+        </div>
+      )}
+
+      {/* ── MODAL AGREGAR FOTO ── */}
+      {galeriaModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <h3 style={{fontSize:15,fontWeight:700,color:"#333"}}>📸 Agregar fotografía</h3>
+              <button onClick={()=>setGaleriaModal(false)} style={{border:"none",background:"#f5f5f5",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:"#666"}}>✕</button>
+            </div>
+
+            {/* Selección de imagen */}
+            <div style={{marginBottom:14}}>
+              <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:6}}>Imagen *</label>
+              {galeriaForm.dataUrl?(
+                <div style={{position:"relative",textAlign:"center"}}>
+                  <img src={galeriaForm.dataUrl} alt="preview" style={{maxWidth:"100%",maxHeight:200,objectFit:"contain",borderRadius:8,border:"1px solid #ddd"}}/>
+                  <button onClick={()=>setGaleriaForm(p=>({...p,dataUrl:""}))} style={{position:"absolute",top:6,right:6,background:"rgba(0,0,0,.5)",border:"none",color:"white",borderRadius:"50%",width:24,height:24,cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+              ):(
+                <label style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,padding:24,border:"2px dashed #ddd",borderRadius:8,cursor:"pointer",background:"#fafafa",color:"#aaa",fontSize:12}}>
+                  <span style={{fontSize:32}}>📷</span>
+                  <span>Haz clic para seleccionar una imagen</span>
+                  <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{const file=e.target.files[0];if(!file)return;comprimirImagen(file,url=>setGaleriaForm(p=>({...p,dataUrl:url})));e.target.value="";}}/>
+                </label>
+              )}
+            </div>
+
+            {/* Título */}
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Título *</label>
+              <input value={galeriaForm.titulo} onChange={e=>setGaleriaForm(p=>({...p,titulo:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}} placeholder="Ej: Stand SLANG — Sede Bogotá"/>
+            </div>
+
+            {/* Descripción */}
+            <div style={{marginBottom:10}}>
+              <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Descripción</label>
+              <textarea value={galeriaForm.descripcion} onChange={e=>setGaleriaForm(p=>({...p,descripcion:e.target.value}))} rows={2} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12,resize:"vertical"}} placeholder="Breve descripción de la actividad..."/>
+            </div>
+
+            {/* Fila: Aliado + Tipo */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Aliado</label>
+                <select value={galeriaForm.aliadoId} onChange={e=>setGaleriaForm(p=>({...p,aliadoId:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}>
+                  <option value="">General del programa</option>
+                  {directorio.filter(a=>a.estado==="Confirmado"||a.estado==="En Gestión").sort((a,b)=>a.empresa.localeCompare(b.empresa)).map(a=>(
+                    <option key={a.id} value={a.id}>{a.empresa}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Tipo de actividad</label>
+                <select value={galeriaForm.tipoActividad} onChange={e=>setGaleriaForm(p=>({...p,tipoActividad:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}>
+                  {TIPOS_ACT_GAL.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Fecha */}
+            <div style={{marginBottom:18}}>
+              <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Fecha</label>
+              <input type="date" value={galeriaForm.fecha} onChange={e=>setGaleriaForm(p=>({...p,fecha:e.target.value}))} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"7px 10px",fontSize:12}}/>
+            </div>
+
+            {/* Botones */}
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button onClick={()=>setGaleriaModal(false)} style={{padding:"8px 16px",borderRadius:6,border:"1px solid #ddd",background:"white",fontSize:12,cursor:"pointer",color:"#666"}}>Cancelar</button>
+              <button onClick={guardarFoto} disabled={!galeriaForm.dataUrl||!galeriaForm.titulo.trim()} style={{padding:"8px 20px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer",opacity:(!galeriaForm.dataUrl||!galeriaForm.titulo.trim())?.5:1}}>Guardar foto</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+    );
+  })()}
+
+  <p style={{fontSize:10,color:"#ccc",textAlign:"center",marginTop:12}}>Haz clic en cada paso para marcar como completado · Los datos se mantienen durante la sesion</p>
+</div>
+  );
+}
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
