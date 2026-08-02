@@ -564,7 +564,8 @@ function App(){
       if(datos){
         if(datos.calEventos) setCalEventos(datos.calEventos);
         if(datos.calAliados) setCalAliados(datos.calAliados);
-        if(datos.directorio) setDirectorio(fusionarAliadosNuevos(datos.directorio));
+        // Si viene de Supabase, usar directamente sin fusionar (el usuario ya tiene control total)
+        if(datos.directorio) setDirectorio(datos.directorio);
         if(datos.sedesConfig) setSedesConfig(datos.sedesConfig);
         if(datos.galeria) setGaleria(datos.galeria);
         if(datos.visitas) setVisitas(datos.visitas);
