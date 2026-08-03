@@ -548,9 +548,8 @@ function App(){
   const [editAliadoNombre,setEditAliadoNombre]=useState("");
   const [nuevoAliadoCalNombre,setNuevoAliadoCalNombre]=useState("");
   const [mostrandoNuevoAliadoCal,setMostrandoNuevoAliadoCal]=useState(false);
-  const [notice,setNotice]=useState(null); // {type:'ok'|'error', msg} - feedback visual de importar/exportar
+  const [notice,setNotice]=useState(null);
   const timeoutRef=useRef(null);
-  const fileInputRef=useRef(null);
 
   useEffect(()=>{
     if(!notice) return;
@@ -747,56 +746,6 @@ function App(){
   };
 
   // Exportar/Importar respaldo completo en JSON
-  const exportData=()=>{
-    const payload={
-      version:7,
-      exportadoEn:new Date().toISOString(),
-      calEventos,calAliados,directorio,visitas,galeria,sedesConfig,
-    };
-    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    const fecha=new Date().toISOString().slice(0,10);
-    a.href=url;
-    a.download=`plan-estrategico-backup-${fecha}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const importData=(e)=>{
-    const file=e.target.files&&e.target.files[0];
-    if(!file){ e.target.value=""; return; }
-    const reader=new FileReader();
-    reader.onload=(ev)=>{
-      try{
-        const data=JSON.parse(ev.target.result);
-        const tieneDatosValidos=data&&(data.calEventos||data.calAliados||data.directorio||data.visitas);
-        if(!tieneDatosValidos){
-          setNotice({type:"error",msg:"El archivo no tiene el formato esperado (debe ser un JSON exportado desde este mismo dashboard)."});
-          e.target.value="";
-          return;
-        }
-        if(data.calEventos) setCalEventos(data.calEventos);
-        if(data.calAliados) setCalAliados(data.calAliados);
-        if(data.directorio) setDirectorio(fusionarAliadosNuevos(data.directorio));
-        if(data.visitas) setVisitas(data.visitas);
-        if(data.galeria) setGaleria(data.galeria);
-        if(data.sedesConfig) setSedesConfig(data.sedesConfig);
-        setNotice({type:"ok",msg:"Datos importados correctamente. Se reemplazaron los datos que tenías antes."});
-      }catch(err){
-        setNotice({type:"error",msg:"No se pudo leer el archivo. Verifica que sea un .json exportado desde este dashboard."});
-      }
-      e.target.value="";
-    };
-    reader.onerror=()=>{
-      setNotice({type:"error",msg:"Hubo un error leyendo el archivo. Intenta de nuevo."});
-      e.target.value="";
-    };
-    reader.readAsText(file);
-  };
-
   const TS=(t)=>({padding:"10px 20px",fontSize:13,fontWeight:600,cursor:"pointer",border:"none",
     borderBottom:tab===t?"3px solid "+AZUL:"3px solid transparent",background:"transparent",
     color:tab===t?AZUL:"#888",transition:"all .15s"});
@@ -838,26 +787,6 @@ function App(){
     <div>
       <h1 style={{fontSize:21,fontWeight:800,color:AZUL,marginBottom:3}}>📋 Plan Estrategico de Convenios y Beneficios</h1>
       <p style={{fontSize:11,color:"#999"}}>Maricarmen Mosquera Diaz · Practicante TR · Sutherland · Inicio: junio 18, 2026</p>
-    </div>
-    <div style={{display:"flex",gap:8}}>
-      <input ref={fileInputRef} type="file" accept="application/json" onChange={importData} style={{display:"none"}}/>
-      <button onClick={()=>fileInputRef.current&&fileInputRef.current.click()} style={{background:"white",color:AZUL,border:"1px solid "+AZUL,padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>⬆️ Importar datos</button>
-      <button onClick={exportData} style={{background:AZUL,color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>⬇️ Exportar datos</button>
-    </div>
-  </div>
-
-  {/* ── BANNER COLABORACIÓN ── */}
-  <div style={{background:"#f8faff",border:"1px solid #d0e2ff",borderRadius:10,padding:"12px 18px",marginBottom:14,display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-    <span style={{fontSize:20,flexShrink:0}}>🤝</span>
-    <div style={{flex:1,minWidth:220}}>
-      <div style={{fontSize:12,fontWeight:700,color:"#1a3a6b",marginBottom:2}}>¿Cómo compartir cambios con el equipo?</div>
-      <div style={{fontSize:11,color:"#555",lineHeight:1.6}}>
-        <b>Para enviar:</b> clic en <b>⬇️ Exportar datos</b> → se descarga un archivo <code style={{background:"#e8f1fb",padding:"1px 5px",borderRadius:3,fontSize:10}}>.json</code> → compártelo por Teams o correo.&nbsp;
-        <b>Para recibir:</b> clic en <b>⬆️ Importar datos</b> → selecciona el archivo que te enviaron → listo.
-      </div>
-    </div>
-    <div style={{fontSize:10,color:"#aaa",flexShrink:0,textAlign:"right"}}>
-      Los datos se guardan<br/>automáticamente en<br/>este navegador ✓
     </div>
   </div>
 
