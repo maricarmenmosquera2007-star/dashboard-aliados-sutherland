@@ -534,6 +534,9 @@ function App(){
   const [modalEliminar,setModalEliminar]=useState(null); // id del aliado a eliminar
   const [visitas,setVisitas]=useState(()=>_lsData?.visitas||[]);
   const [visSelAliadoId,setVisSelAliadoId]=useState(null);
+  const [histFiltro,setHistFiltro]=useState("");
+  const [histVista,setHistVista]=useState("directorio");
+  const [histAliadoSel,setHistAliadoSel]=useState(null);
   const hoy=new Date();
   const [visMes,setVisMes]=useState(hoy.getMonth());
   const [visAnio,setVisAnio]=useState(hoy.getFullYear());
@@ -564,7 +567,23 @@ function App(){
         if(datos.calEventos) setCalEventos(datos.calEventos);
         if(datos.calAliados) setCalAliados(datos.calAliados);
         // Si viene de Supabase, usar directamente sin fusionar (el usuario ya tiene control total)
-        if(datos.directorio) setDirectorio(datos.directorio);
+        if(datos.directorio){
+          // Fusionar datos de Supabase con DIRECTORIO_INIT para preservar campos completos
+          // Los datos de Supabase tienen prioridad (estado, grupo, etc.)
+          // pero DIRECTORIO_INIT aporta los campos que puedan faltar (empresa, contacto, etc.)
+          const idxInit={};
+          DIRECTORIO_INIT.forEach(a=>{idxInit[a.id]=a;});
+          const fusionado=datos.directorio.map(a=>{
+            const base=idxInit[a.id]||{};
+            return{...base,...a}; // Supabase sobreescribe, INIT rellena lo que falta
+          });
+          // Agregar del código los que no estén en Supabase
+          const idsSupabase=new Set(fusionado.map(a=>a.id));
+          [...ALIADOS_CONFIRMADOS,...ALIADOS_GESTION,...ALIADOS_CONTACTOS].forEach(a=>{
+            if(!idsSupabase.has(a.id)) fusionado.push(a);
+          });
+          setDirectorio(fusionado);
+        }
         if(datos.sedesConfig) setSedesConfig(datos.sedesConfig);
         if(datos.galeria) setGaleria(datos.galeria);
         if(datos.visitas) setVisitas(datos.visitas);
@@ -1949,8 +1968,6 @@ function App(){
   {/* ══════ TAB CONVENIOS HISTÓRICOS ══════ */}
   {tab==="historicos"&&(()=>{
     const listaHist=directorio.filter(a=>a.grupo==="historico");
-    const [histFiltro,setHistFiltro]=useState("");
-    const [histVista,setHistVista]=useState("directorio"); // "directorio" | "visitas"
     const listaFiltrada=listaHist.filter(a=>{
       if(!histFiltro.trim()) return true;
       const q=histFiltro.toLowerCase();
@@ -1964,7 +1981,6 @@ function App(){
     });
     const hoyStr=new Date().toISOString().slice(0,10);
     const proximasHist=visitasHist.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);
-    const [histAliadoSel,setHistAliadoSel]=useState(null);
     const aliadoHistSel=histAliadoSel?listaHist.find(d=>d.id===histAliadoSel):null;
     const visitasDelHist=aliadoHistSel?visitasDe(aliadoHistSel.id):[];
 
