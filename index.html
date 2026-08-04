@@ -203,7 +203,7 @@ const SEDES_CONFIG_INIT=[
 ];
 
 // ESTADOS POSIBLES DE ALIADO
-const ESTADOS_ALIADO=["Confirmado","En Gestión","Contacto"];
+const ESTADOS_ALIADO=["Contacto","En Gestión","En Revisión","En Formalización","Confirmado"];
 const ESTADOS_NEGOCIACION=["Pendiente","En negociación","Por definir"];
 
 
@@ -834,10 +834,9 @@ function App(){
     const programa=directorio.filter(a=>a.grupo==="programa"||!a.grupo);
     const progConfirmados=programa.filter(a=>a.estado==="Confirmado");
     const progGestion=programa.filter(a=>a.estado==="En Gestión");
-    const progContactos=programa.filter(a=>a.estado==="Contacto");
-    // Estados adicionales del embudo del programa
     const progRevision=programa.filter(a=>a.estado==="En Revisión");
     const progFormaliz=programa.filter(a=>a.estado==="En Formalización");
+    const progContactos=programa.filter(a=>a.estado==="Contacto");
 
     // ── Bloque A ──
     const nuevosEsteMes=confirmados.filter(a=>{if(!a.fechaInicioConvenio)return false;const f=new Date(a.fechaInicioConvenio);return f.getMonth()===mesActual&&f.getFullYear()===anioActual;});
@@ -969,21 +968,23 @@ function App(){
             </div>
           </div>
 
-          {/* Embudo dinámico de 4 etapas */}
+          {/* Embudo dinámico de 5 etapas */}
           <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
             {[
-              {label:"Contactos\nDirectos",n:progContactos.length,color:"rgba(255,255,255,.5)"},
+              {label:"Contacto",n:progContactos.length,color:"rgba(255,255,255,.5)"},
               {arrow:true},
-              {label:"En Revisión\nde Docs",n:progRevision.length,color:"rgba(255,220,130,.85)"},
+              {label:"En\nGestión",n:progGestion.length,color:"rgba(255,220,130,.85)"},
               {arrow:true},
-              {label:"En\nFormalización",n:progFormaliz.length+progGestion.length,color:"rgba(255,170,80,.95)"},
+              {label:"En\nRevisión",n:progRevision.length,color:"rgba(255,180,80,.95)"},
+              {arrow:true},
+              {label:"En\nFormalización",n:progFormaliz.length,color:"rgba(255,140,50,.95)"},
               {arrow:true},
               {label:"Aliados\nActivos",n:progConfirmados.length,color:"#7ee8a2"},
             ].map((s,i)=>s.arrow?(
               <span key={i} style={{color:"rgba(255,255,255,.25)",fontSize:16,margin:"0 2px"}}>→</span>
             ):(
-              <div key={i} style={{textAlign:"center",minWidth:72,background:"rgba(255,255,255,.08)",borderRadius:10,padding:"8px 10px",border:"1px solid rgba(255,255,255,.12)"}}>
-                <div style={{fontSize:24,fontWeight:900,color:s.color,lineHeight:1}}>{s.n}</div>
+              <div key={i} style={{textAlign:"center",minWidth:65,background:"rgba(255,255,255,.08)",borderRadius:10,padding:"8px 8px",border:"1px solid rgba(255,255,255,.12)"}}>
+                <div style={{fontSize:22,fontWeight:900,color:s.color,lineHeight:1}}>{s.n}</div>
                 <div style={{fontSize:9,color:"rgba(255,255,255,.55)",fontWeight:600,marginTop:4,lineHeight:1.3,whiteSpace:"pre-line"}}>{s.label}</div>
               </div>
             ))}
@@ -1183,14 +1184,16 @@ function App(){
   {/* ══════ TAB DIRECTORIO ══════ */}
   {tab==="directorio"&&(
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <span style={{fontSize:11,fontWeight:700,color:"#999",textTransform:"uppercase",letterSpacing:1,alignSelf:"center",marginRight:4}}>📂 Directorio:</span>
-        <button onClick={()=>setDirVista("confirmados")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="confirmados"?VERDE:"#ddd"),background:dirVista==="confirmados"?VERDE:"white",color:dirVista==="confirmados"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>✅ Confirmados</button>
-        <button onClick={()=>setDirVista("gestion")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="gestion"?NARANJA:"#ddd"),background:dirVista==="gestion"?NARANJA:"white",color:dirVista==="gestion"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>⏳ En Gestión</button>
-        <button onClick={()=>setDirVista("contactos")} style={{padding:"8px 14px",borderRadius:6,border:"2px solid "+(dirVista==="contactos"?AZUL:"#ddd"),background:dirVista==="contactos"?AZUL:"white",color:dirVista==="contactos"?"white":"#333",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .15s"}}>📞 Contactos</button>
+        <button onClick={()=>setDirVista("contactos")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="contactos"?AZUL:"#ddd"),background:dirVista==="contactos"?AZUL:"white",color:dirVista==="contactos"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>📞 Contacto</button>
+        <button onClick={()=>setDirVista("gestion")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="gestion"?"#e07b00":"#ddd"),background:dirVista==="gestion"?"#e07b00":"white",color:dirVista==="gestion"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>⏳ En Gestión</button>
+        <button onClick={()=>setDirVista("revision")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="revision"?"#d97706":"#ddd"),background:dirVista==="revision"?"#d97706":"white",color:dirVista==="revision"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>🔍 En Revisión</button>
+        <button onClick={()=>setDirVista("formalizacion")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="formalizacion"?"#b45309":"#ddd"),background:dirVista==="formalizacion"?"#b45309":"white",color:dirVista==="formalizacion"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>📋 En Formalización</button>
+        <button onClick={()=>setDirVista("confirmados")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="confirmados"?VERDE:"#ddd"),background:dirVista==="confirmados"?VERDE:"white",color:dirVista==="confirmados"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>✅ Confirmados</button>
         <div style={{flex:1}}/>
-        <button onClick={()=>setDirVista("lista")} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(dirVista==="lista"?"#f5b8d3":"#ddd"),background:dirVista==="lista"?"#f5b8d3":"white",color:dirVista==="lista"?"#7a2e4d":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📇 Mi Lista</button>
-        <button onClick={()=>setDirVista("visitas")} style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid "+(dirVista==="visitas"?PURP:"#ddd"),background:dirVista==="visitas"?PURP:"white",color:dirVista==="visitas"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
+        <button onClick={()=>setDirVista("lista")} style={{padding:"7px 14px",borderRadius:20,border:"1.5px solid "+(dirVista==="lista"?"#f5b8d3":"#ddd"),background:dirVista==="lista"?"#f5b8d3":"white",color:dirVista==="lista"?"#7a2e4d":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>📇 Mi Lista</button>
+        <button onClick={()=>setDirVista("visitas")} style={{padding:"7px 14px",borderRadius:20,border:"1.5px solid "+(dirVista==="visitas"?PURP:"#ddd"),background:dirVista==="visitas"?PURP:"white",color:dirVista==="visitas"?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
       </div>
 
     {/* ══ VISTA: CONFIRMADOS ══ */}
@@ -1314,6 +1317,105 @@ function App(){
       );
     })()}
 
+
+    {/* ══ VISTA: EN REVISIÓN ══ */}
+    {dirVista==="revision"&&(()=>{
+      const lista=directorio.filter(a=>a.estado==="En Revisión"&&(a.grupo==="programa"||!a.grupo));
+      return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <h3 style={{fontSize:14,fontWeight:700,color:"#d97706",marginBottom:2}}>🔍 En Revisión de Documentos</h3>
+            <p style={{fontSize:11,color:"#888"}}>Aliados con documentación en proceso de revisión · {lista.length} en esta etapa</p>
+          </div>
+          <button onClick={()=>abrirModalNuevo("En Revisión")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:"#d97706",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
+        </div>
+        {lista.length===0?(
+          <div style={{textAlign:"center",padding:"32px 20px",color:"#bbb"}}>
+            <div style={{fontSize:32,marginBottom:8}}>🔍</div>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>Ningún aliado en revisión de documentos</div>
+            <div style={{fontSize:11}}>Cuando un aliado avance a esta etapa, aparecerá aquí automáticamente.</div>
+          </div>
+        ):(
+          <div style={{overflowX:"auto",border:"1.5px solid #d97706",borderRadius:8}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead><tr style={{background:"#d97706"}}>
+                {["Aliado","Categoría","Contacto","Ciudad","Beneficio propuesto","Responsable","Acciones"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {lista.map((a,i)=>(
+                  <tr key={a.id} style={{borderBottom:"1px solid #fde68a",background:i%2===0?"white":"#fffbeb"}}>
+                    <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.contacto||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.ciudad||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555"}}>{a.beneficio||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555"}}>{a.responsable||"—"}</td>
+                    <td style={{padding:"9px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
+                      <button onClick={()=>abrirModalEditar(a)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",marginRight:4,fontWeight:600}}>✏️</button>
+                      <button onClick={()=>setModalEliminar(a.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      );
+    })()}
+
+    {/* ══ VISTA: EN FORMALIZACIÓN ══ */}
+    {dirVista==="formalizacion"&&(()=>{
+      const lista=directorio.filter(a=>a.estado==="En Formalización"&&(a.grupo==="programa"||!a.grupo));
+      return(
+      <div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
+          <div>
+            <h3 style={{fontSize:14,fontWeight:700,color:"#b45309",marginBottom:2}}>📋 En Formalización</h3>
+            <p style={{fontSize:11,color:"#888"}}>Aliados con proceso de formalización activo · {lista.length} en esta etapa</p>
+          </div>
+          <button onClick={()=>abrirModalNuevo("En Formalización")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:"#b45309",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
+        </div>
+        {lista.length===0?(
+          <div style={{textAlign:"center",padding:"32px 20px",color:"#bbb"}}>
+            <div style={{fontSize:32,marginBottom:8}}>📋</div>
+            <div style={{fontSize:13,fontWeight:600,marginBottom:4}}>Ningún aliado en formalización</div>
+            <div style={{fontSize:11}}>Cuando un aliado avance a esta etapa, aparecerá aquí automáticamente.</div>
+          </div>
+        ):(
+          <div style={{overflowX:"auto",border:"1.5px solid #b45309",borderRadius:8}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead><tr style={{background:"#b45309"}}>
+                {["Aliado","Categoría","Contacto","Ciudad","Beneficio","Responsable","Comentarios","Acciones"].map(h=>(
+                  <th key={h} style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>{h}</th>
+                ))}
+              </tr></thead>
+              <tbody>
+                {lista.map((a,i)=>(
+                  <tr key={a.id} style={{borderBottom:"1px solid #fed7aa",background:i%2===0?"white":"#fff7ed"}}>
+                    <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.contacto||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.ciudad||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555"}}>{a.beneficio||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555"}}>{a.responsable||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.comentarios||"—"}</td>
+                    <td style={{padding:"9px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
+                      <button onClick={()=>abrirModalEditar(a)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",marginRight:4,fontWeight:600}}>✏️</button>
+                      <button onClick={()=>setModalEliminar(a.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:4,padding:"4px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      );
+    })()}
 
     {/* ══ VISTA: CONTACTOS ══ */}
     {dirVista==="contactos"&&(()=>{
