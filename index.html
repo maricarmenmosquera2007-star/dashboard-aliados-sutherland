@@ -807,10 +807,11 @@ function App(){
   </div>
 
   {/* TABS */}
-  <div style={{background:"white",borderRadius:"10px 10px 0 0",border:"1px solid #e5e5e5",borderBottom:"none",display:"flex",paddingLeft:6}}>
+  <div style={{background:"white",borderRadius:"10px 10px 0 0",border:"1px solid #e5e5e5",borderBottom:"none",display:"flex",paddingLeft:6,flexWrap:"wrap"}}>
     <button style={TS("dashboard")} onClick={()=>setTab("dashboard")}>📊 Dashboard</button>
+    <button style={TS("programa")} onClick={()=>setTab("programa")}>🤝 Programa de Aliados</button>
+    <button style={TS("historicos")} onClick={()=>setTab("historicos")}>🏛️ Convenios Históricos</button>
     <button style={TS("calendario")} onClick={()=>setTab("calendario")}>📅 Calendario</button>
-    <button style={TS("directorio")} onClick={()=>setTab("directorio")}>📇 Directorio de Contactos</button>
     <button style={TS("galeria")} onClick={()=>setTab("galeria")}>🖼️ Galería</button>
   </div>
 
@@ -1182,7 +1183,7 @@ function App(){
   )}
 
   {/* ══════ TAB DIRECTORIO ══════ */}
-  {tab==="directorio"&&(
+  {tab==="programa"&&(
     <div>
       <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
         <span style={{fontSize:11,fontWeight:700,color:"#999",textTransform:"uppercase",letterSpacing:1,alignSelf:"center",marginRight:4}}>📂 Directorio:</span>
@@ -1526,13 +1527,17 @@ function App(){
     {dirVista==="visitas"&&(()=>{
       const hoyStr=new Date().toISOString().slice(0,10);
 
+      // ── Solo visitas del Programa de Aliados (excluye históricos) ──
+      const idsProg=new Set(directorio.filter(a=>a.grupo==="programa"||!a.grupo).map(a=>a.id));
+      const visitasProg=visitas.filter(v=>idsProg.has(v.aliadoId));
+
       // ── Cálculos globales del mes ──
-      const visitasMes=visitas.filter(v=>{
+      const visitasMes=visitasProg.filter(v=>{
         const d=new Date(v.fecha+"T00:00:00");
         return d.getMonth()===visMes&&d.getFullYear()===visAnio;
       });
       const finalizadas=visitasMes.filter(v=>v.estado==="Finalizada").length;
-      const programadas=visitas.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).length;
+      const programadas=visitasProg.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).length;
       const canceladas=visitasMes.filter(v=>v.estado==="Cancelada").length;
 
       // Visitas por tipo (mes actual)
@@ -1541,7 +1546,7 @@ function App(){
       const tipoEntries=Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
       const maxTipo=tipoEntries.length>0?tipoEntries[0][1]:1;
 
-      // Visitas por contacto (mes actual)
+      // Visitas por contacto del programa (mes actual)
       const porContacto={};
       visitasMes.forEach(v=>{
         const d=directorio.find(x=>x.id===v.aliadoId);
@@ -1551,12 +1556,12 @@ function App(){
       const contactoEntries=Object.entries(porContacto).sort((a,b)=>b[1]-a[1]).slice(0,6);
       const maxContacto=contactoEntries.length>0?contactoEntries[0][1]:1;
 
-      // Tendencia últimos 6 meses
+      // Tendencia últimos 6 meses (solo programa)
       const tendencia=[];
       for(let i=5;i>=0;i--){
         let m=visMes-i,a=visAnio;
         while(m<0){m+=12;a--;}
-        const total=visitas.filter(v=>{
+        const total=visitasProg.filter(v=>{
           const d=new Date(v.fecha+"T00:00:00");
           return d.getMonth()===m&&d.getFullYear()===a&&v.estado!=="Cancelada";
         }).length;
@@ -1564,12 +1569,13 @@ function App(){
       }
       const maxTend=Math.max(1,...tendencia.map(t=>t.total));
 
-      // Próximas visitas
-      const proximas=visitas.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr)
+      // Próximas visitas (solo programa)
+      const proximas=visitasProg.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr)
         .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);
 
-      // Contacto seleccionado
-      const aliadoSel=directorio.find(d=>d.id===visSelAliadoId)||null;
+      // Contacto seleccionado (solo del programa)
+      const contactosProg=directorio.filter(a=>a.grupo==="programa"||!a.grupo);
+      const aliadoSel=contactosProg.find(d=>d.id===visSelAliadoId)||null;
       const visSel=aliadoSel?visitasDe(aliadoSel.id):[];
 
       const COLS_ESTADO={
@@ -1696,15 +1702,15 @@ function App(){
 
           {/* Selector de contacto */}
           <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-            {directorio.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión").map(d=>(
+            {contactosProg.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión"||d.estado==="En Revisión"||d.estado==="En Formalización").map(d=>(
               <button key={d.id} onClick={()=>setVisSelAliadoId(d.id)}
                 style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(aliadoSel&&aliadoSel.id===d.id?PURP:"#ddd"),background:aliadoSel&&aliadoSel.id===d.id?PURP:"white",color:aliadoSel&&aliadoSel.id===d.id?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
                 {d.empresa||"(sin nombre)"}
                 {visitasDe(d.id).length>0&&<span style={{marginLeft:5,background:"rgba(255,255,255,.25)",padding:"1px 6px",borderRadius:10,fontSize:9}}>{visitasDe(d.id).length}</span>}
               </button>
             ))}
-            {directorio.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión").length===0&&(
-              <p style={{fontSize:11,color:"#bbb"}}>Agrega contactos confirmados o en gestión para registrar visitas.</p>
+            {contactosProg.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión"||d.estado==="En Revisión"||d.estado==="En Formalización").length===0&&(
+              <p style={{fontSize:11,color:"#bbb"}}>Agrega contactos al Programa de Aliados para registrar visitas.</p>
             )}
           </div>
 
@@ -1939,6 +1945,186 @@ function App(){
     </div>
   </div>
   )}
+
+  {/* ══════ TAB CONVENIOS HISTÓRICOS ══════ */}
+  {tab==="historicos"&&(()=>{
+    const listaHist=directorio.filter(a=>a.grupo==="historico");
+    const [histFiltro,setHistFiltro]=useState("");
+    const [histVista,setHistVista]=useState("directorio"); // "directorio" | "visitas"
+    const listaFiltrada=listaHist.filter(a=>{
+      if(!histFiltro.trim()) return true;
+      const q=histFiltro.toLowerCase();
+      return(a.empresa||"").toLowerCase().includes(q)||(a.contacto||"").toLowerCase().includes(q)||(a.categoria||"").toLowerCase().includes(q)||(a.ciudad||"").toLowerCase().includes(q);
+    });
+
+    // Visitas de históricos
+    const visitasHist=visitas.filter(v=>{
+      const d=directorio.find(x=>x.id===v.aliadoId);
+      return d&&d.grupo==="historico";
+    });
+    const hoyStr=new Date().toISOString().slice(0,10);
+    const proximasHist=visitasHist.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);
+    const [histAliadoSel,setHistAliadoSel]=useState(null);
+    const aliadoHistSel=histAliadoSel?listaHist.find(d=>d.id===histAliadoSel):null;
+    const visitasDelHist=aliadoHistSel?visitasDe(aliadoHistSel.id):[];
+
+    const COLS_EST={
+      "Finalizada":{bg:"#dcfce7",color:"#166534"},
+      "Programada":{bg:"#dbeafe",color:"#1e40af"},
+      "En curso":{bg:"#fef3c7",color:"#92400e"},
+      "Cancelada":{bg:"#fee2e2",color:"#991b1b"},
+    };
+
+    return(
+    <div>
+      {/* Encabezado */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8}}>
+        <div>
+          <h2 style={{fontSize:16,fontWeight:800,color:"#495057",marginBottom:3}}>🏛️ Convenios Históricos · Sutherland TR</h2>
+          <p style={{fontSize:11,color:"#888"}}>{listaHist.length} convenios vigentes implementados por Sutherland · Gestión de mantenimiento y relación</p>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setHistVista("directorio")} style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid "+(histVista==="directorio"?"#495057":"#ddd"),background:histVista==="directorio"?"#495057":"white",color:histVista==="directorio"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📋 Directorio</button>
+          <button onClick={()=>setHistVista("visitas")} style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid "+(histVista==="visitas"?PURP:"#ddd"),background:histVista==="visitas"?PURP:"white",color:histVista==="visitas"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
+        </div>
+      </div>
+
+      {/* KPIs rápidos */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
+        {[
+          {label:"Convenios vigentes",val:listaHist.length,color:"#495057",bg:"#f8f9fa",icon:"🏛️"},
+          {label:"Visitas registradas",val:visitasHist.length,color:PURP,bg:"#faf7ff",icon:"📍"},
+          {label:"Próximas programadas",val:proximasHist.length,color:AZUL,bg:"#e8f1fb",icon:"📅"},
+          {label:"Ciudades con presencia",val:new Set(listaHist.map(a=>a.ciudad).filter(Boolean)).size,color:VERDE,bg:"#f0f7eb",icon:"📍"},
+        ].map((k,i)=>(
+          <div key={i} style={{background:k.bg,border:"1px solid #e5e7eb",borderRadius:10,padding:"12px 14px"}}>
+            <div style={{fontSize:20}}>{k.icon}</div>
+            <div style={{fontSize:22,fontWeight:900,color:k.color,lineHeight:1,marginTop:4}}>{k.val}</div>
+            <div style={{fontSize:10,color:"#888",marginTop:4,fontWeight:600}}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── VISTA DIRECTORIO ── */}
+      {histVista==="directorio"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,gap:8,flexWrap:"wrap"}}>
+            <input value={histFiltro} onChange={e=>setHistFiltro(e.target.value)} placeholder="Buscar por empresa, contacto, categoría o ciudad..." style={{flex:1,maxWidth:380,padding:"8px 12px",border:"1px solid #ddd",borderRadius:7,fontSize:12}}/>
+            <span style={{fontSize:11,color:"#aaa"}}>{listaFiltrada.length} de {listaHist.length} convenios</span>
+          </div>
+          <div style={{overflowX:"auto",border:"1.5px solid #dee2e6",borderRadius:8}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead>
+                <tr style={{background:"#495057"}}>
+                  {["Empresa","Contacto","Categoría","Ciudad","Correo","Teléfono"].map(h=>(
+                    <th key={h} style={{textAlign:"left",padding:"10px 12px",fontWeight:700,color:"white"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {listaFiltrada.length===0&&(
+                  <tr><td colSpan={6} style={{padding:20,textAlign:"center",color:"#aaa",fontSize:12}}>No se encontraron convenios con ese criterio.</td></tr>
+                )}
+                {listaFiltrada.map((a,i)=>(
+                  <tr key={a.id} style={{borderBottom:"1px solid #dee2e6",background:i%2===0?"white":"#f8f9fa"}}>
+                    <td style={{padding:"9px 12px",fontWeight:600,color:"#333"}}>{a.empresa}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.contacto||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.categoria||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#666"}}>{a.ciudad||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.correo||"—"}</td>
+                    <td style={{padding:"9px 12px",color:"#555"}}>{a.telefono||"—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p style={{fontSize:10,color:"#bbb",marginTop:8}}>Los convenios históricos son de solo consulta. Para modificarlos contacta al área responsable.</p>
+        </div>
+      )}
+
+      {/* ── VISTA VISITAS ── */}
+      {histVista==="visitas"&&(
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:4}}>Registro de visitas de mantenimiento</div>
+          <p style={{fontSize:11,color:"#888",marginBottom:16}}>Visitas realizadas a los convenios históricos para mantenimiento de la relación.</p>
+
+          {/* Próximas visitas */}
+          {proximasHist.length>0&&(
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:8}}>📅 Próximas visitas programadas</div>
+              <div style={{display:"grid",gap:6}}>
+                {proximasHist.map(v=>{
+                  const d=listaHist.find(x=>x.id===v.aliadoId);
+                  return(
+                    <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{d?d.empresa:"?"} · {v.tipoActividad}</div>
+                        <div style={{fontSize:10,color:"#999"}}>{v.ciudad}{v.responsable?" · "+v.responsable:""}</div>
+                      </div>
+                      <span style={{fontSize:11,fontWeight:600,color:AZUL}}>{v.fecha}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Selector de convenio histórico */}
+          <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:8}}>Historial por convenio</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+            {listaHist.map(d=>(
+              <button key={d.id} onClick={()=>setHistAliadoSel(d.id)}
+                style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(histAliadoSel===d.id?"#495057":"#ddd"),background:histAliadoSel===d.id?"#495057":"white",color:histAliadoSel===d.id?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                {d.empresa}
+                {visitasDe(d.id).length>0&&<span style={{marginLeft:5,background:"rgba(255,255,255,.25)",padding:"1px 6px",borderRadius:10,fontSize:9}}>{visitasDe(d.id).length}</span>}
+              </button>
+            ))}
+          </div>
+
+          {aliadoHistSel&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <span style={{fontSize:13,fontWeight:700,color:"#333"}}>{aliadoHistSel.empresa}</span>
+                <button onClick={()=>abrirNuevaVisita(aliadoHistSel.id)} style={{background:"#495057",color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Registrar visita</button>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <div style={{background:"#f8f9fa",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
+                  <div style={{fontSize:18,fontWeight:900,color:"#495057"}}>{visitasDelHist.length}</div>
+                  <div style={{fontSize:9,color:"#999"}}>Total visitas</div>
+                </div>
+                <div style={{background:"#f0f7eb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
+                  <div style={{fontSize:18,fontWeight:900,color:VERDE}}>{visitasDelHist.filter(v=>v.estado==="Finalizada").length}</div>
+                  <div style={{fontSize:9,color:"#999"}}>Finalizadas</div>
+                </div>
+                <div style={{background:"#e8f1fb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
+                  <div style={{fontSize:18,fontWeight:900,color:AZUL}}>{visitasDelHist.filter(v=>v.estado==="Programada").length}</div>
+                  <div style={{fontSize:9,color:"#999"}}>Programadas</div>
+                </div>
+              </div>
+              <div style={{display:"grid",gap:6}}>
+                {visitasDelHist.map(v=>{
+                  const est=COLS_EST[v.estado]||{bg:"#f0f0f0",color:"#555"};
+                  return(
+                    <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{v.tipoActividad} · {v.fecha}</div>
+                        <div style={{fontSize:11,color:"#888"}}>{v.ciudad}{v.site?" · "+v.site:""}{v.responsable?" · "+v.responsable:""}</div>
+                        {v.observaciones&&<div style={{fontSize:10,color:"#aaa",marginTop:2,fontStyle:"italic"}}>{v.observaciones.slice(0,60)}{v.observaciones.length>60?"...":""}</div>}
+                      </div>
+                      <span style={{background:est.bg,color:est.color,padding:"3px 10px",borderRadius:20,fontSize:10,fontWeight:700,flexShrink:0,marginLeft:8}}>{v.estado}</span>
+                    </div>
+                  );
+                })}
+                {visitasDelHist.length===0&&<p style={{fontSize:11,color:"#bbb",padding:"8px 0"}}>Este convenio aún no tiene visitas registradas.</p>}
+              </div>
+            </div>
+          )}
+          {!aliadoHistSel&&<p style={{fontSize:11,color:"#bbb"}}>Selecciona un convenio histórico para ver su historial de visitas.</p>}
+        </div>
+      )}
+    </div>
+    );
+  })()}
 
   {/* ══════ TAB GALERÍA ══════ */}
   {tab==="galeria"&&(()=>{
