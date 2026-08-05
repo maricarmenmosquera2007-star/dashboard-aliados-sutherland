@@ -2222,6 +2222,215 @@ function App(){
     );
   })()}
 
+  {/* ══════ TAB TAREAS ══════ */}
+  {tab==="tareas"&&(()=>{
+    const PRIOR_COLOR={"Alta":{bg:"#fee2e2",color:"#dc2626"},"Media":{bg:"#fef3c7",color:"#b45309"},"Baja":{bg:"#f0f7eb",color:"#3B6D11"}};
+    const hoyD=new Date().toISOString().slice(0,10);
+
+    // Filtrado
+    const tareasFiltradas=tareas.filter(t=>{
+      if(tareasFiltro==="hoy") return t.fecha===hoyD&&!t.completada;
+      if(tareasFiltro==="vencidas") return t.fecha<hoyD&&!t.completada;
+      if(tareasFiltro==="completadas") return t.completada;
+      if(tareasFiltro==="pendientes") return !t.completada;
+      return true; // todas
+    });
+
+    // Ordenado
+    const tareasOrdenadas=[...tareasFiltradas].sort((a,b)=>{
+      if(tareasOrden==="prioridad"){
+        const p={"Alta":0,"Media":1,"Baja":2};
+        return(p[a.prioridad]||1)-(p[b.prioridad]||1)||a.fecha.localeCompare(b.fecha);
+      }
+      return a.fecha.localeCompare(b.fecha)||(a.hora||"").localeCompare(b.hora||"");
+    });
+
+    // Contadores
+    const totalPendientes=tareas.filter(t=>!t.completada).length;
+    const totalVencidas=tareas.filter(t=>!t.completada&&t.fecha<hoyD).length;
+    const totalHoy=tareas.filter(t=>!t.completada&&t.fecha===hoyD).length;
+    const totalCompletadas=tareas.filter(t=>t.completada).length;
+
+    const irAAliado=(aliadoId)=>{
+      const al=directorio.find(a=>a.id===aliadoId);
+      if(!al) return;
+      if(al.grupo==="historico"){setTab("historicos");setHistVista("directorio");}
+      else{setTab("programa");setDirVista(al.estado==="Confirmado"?"confirmados":al.estado==="En Gestión"?"gestion":al.estado==="En Revisión"?"revision":al.estado==="En Formalización"?"formalizacion":"contactos");}
+    };
+
+    return(
+    <div>
+      {/* Encabezado */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h2 style={{fontSize:16,fontWeight:800,color:"#333",marginBottom:3}}>✅ Centro de Tareas</h2>
+          <p style={{fontSize:11,color:"#888"}}>Gestión de pendientes del Programa de Aliados</p>
+        </div>
+        <button onClick={()=>abrirNuevaTarea("")} style={{background:AZUL,color:"white",border:"none",padding:"9px 18px",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>+ Nueva tarea</button>
+      </div>
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+        {[
+          {label:"Pendientes",val:totalPendientes,color:"#333",bg:"#f9fafb",icon:"📋",filtro:"pendientes"},
+          {label:"Vencidas",val:totalVencidas,color:"#dc2626",bg:"#fff1f2",icon:"🔴",filtro:"vencidas"},
+          {label:"Para hoy",val:totalHoy,color:"#b45309",bg:"#fef3c7",icon:"🟡",filtro:"hoy"},
+          {label:"Completadas",val:totalCompletadas,color:VERDE,bg:"#f0f7eb",icon:"🟢",filtro:"completadas"},
+        ].map(k=>(
+          <div key={k.label} onClick={()=>setTareasFiltro(k.filtro)}
+            style={{background:tareasFiltro===k.filtro?k.bg:"white",border:"2px solid "+(tareasFiltro===k.filtro?k.color:"#e5e7eb"),borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"all .15s"}}>
+            <div style={{fontSize:18}}>{k.icon}</div>
+            <div style={{fontSize:24,fontWeight:900,color:k.color,lineHeight:1,marginTop:4}}>{k.val}</div>
+            <div style={{fontSize:10,color:"#888",marginTop:3,fontWeight:600}}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Controles de orden y filtro */}
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{fontSize:11,color:"#999",fontWeight:600}}>Filtro:</span>
+        {[["pendientes","⏳ Pendientes"],["hoy","🟡 Hoy"],["vencidas","🔴 Vencidas"],["completadas","🟢 Completadas"],["todas","📋 Todas"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTareasFiltro(v)}
+            style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(tareasFiltro===v?AZUL:"#ddd"),background:tareasFiltro===v?AZUL:"white",color:tareasFiltro===v?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+            {l}
+          </button>
+        ))}
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:11,color:"#999",fontWeight:600}}>Ordenar:</span>
+          <button onClick={()=>setTareasOrden("fecha")}
+            style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(tareasOrden==="fecha"?PURP:"#ddd"),background:tareasOrden==="fecha"?PURP:"white",color:tareasOrden==="fecha"?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+            📅 Por fecha
+          </button>
+          <button onClick={()=>setTareasOrden("prioridad")}
+            style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(tareasOrden==="prioridad"?PURP:"#ddd"),background:tareasOrden==="prioridad"?PURP:"white",color:tareasOrden==="prioridad"?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+            🔺 Por prioridad
+          </button>
+        </div>
+      </div>
+
+      {/* Lista de tareas */}
+      {tareasOrdenadas.length===0?(
+        <div style={{textAlign:"center",padding:"48px 20px",color:"#bbb"}}>
+          <div style={{fontSize:40,marginBottom:12}}>✅</div>
+          <div style={{fontSize:14,fontWeight:600,marginBottom:6}}>
+            {tareasFiltro==="completadas"?"No hay tareas completadas aún":"¡Sin tareas pendientes!"}
+          </div>
+          <div style={{fontSize:12}}>Crea una nueva tarea con el botón de arriba.</div>
+        </div>
+      ):(
+        <div style={{display:"grid",gap:8}}>
+          {tareasOrdenadas.map(t=>{
+            const sem=semaforo(t);
+            const al=t.aliadoId?directorio.find(a=>a.id===t.aliadoId):null;
+            const pc=PRIOR_COLOR[t.prioridad]||PRIOR_COLOR["Media"];
+            return(
+              <div key={t.id} style={{background:"white",border:"1px solid #e5e7eb",borderRadius:10,padding:"12px 16px",display:"flex",gap:12,alignItems:"flex-start",opacity:t.completada?.6:1,boxShadow:"0 1px 3px rgba(0,0,0,.04)"}}>
+                {/* Checkbox */}
+                <div onClick={()=>toggleTarea(t.id)} style={{width:20,height:20,borderRadius:5,border:"2px solid "+(t.completada?VERDE:"#ddd"),background:t.completada?VERDE:"white",cursor:"pointer",flexShrink:0,marginTop:2,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  {t.completada&&<span style={{color:"white",fontSize:12,fontWeight:800}}>✓</span>}
+                </div>
+                {/* Contenido */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                    <span style={{fontSize:13,fontWeight:700,color:t.completada?"#aaa":"#333",textDecoration:t.completada?"line-through":"none"}}>{t.titulo}</span>
+                    <span style={{fontSize:9,fontWeight:700,background:pc.bg,color:pc.color,padding:"2px 8px",borderRadius:20}}>{t.prioridad}</span>
+                    <span style={{fontSize:10,fontWeight:600,color:sem.color}}>{sem.emoji} {sem.label}</span>
+                  </div>
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
+                    <span style={{fontSize:11,color:"#888"}}>📅 {t.fecha}{t.hora?" · ⏰ "+t.hora:""}</span>
+                    {al&&(
+                      <span onClick={()=>irAAliado(t.aliadoId)} style={{fontSize:11,color:AZUL,fontWeight:600,cursor:"pointer",textDecoration:"underline"}}>
+                        🤝 {al.empresa}
+                      </span>
+                    )}
+                  </div>
+                  {t.notas&&<div style={{fontSize:11,color:"#999",marginTop:4,fontStyle:"italic"}}>{t.notas}</div>}
+                </div>
+                {/* Acciones */}
+                <div style={{display:"flex",gap:4,flexShrink:0}}>
+                  {!t.completada&&t.fecha<hoyStr&&(
+                    <button onClick={()=>reprogramarTarea(t)} title="Reprogramar" style={{border:"none",background:"#fef3c7",color:"#b45309",borderRadius:6,padding:"5px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>📅</button>
+                  )}
+                  <button onClick={()=>abrirEditarTarea(t)} style={{border:"none",background:"#e8f1fb",color:AZUL,borderRadius:6,padding:"5px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>✏️</button>
+                  <button onClick={()=>eliminarTarea(t.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:6,padding:"5px 8px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal crear/editar tarea */}
+      {modalTarea&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div style={{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <h3 style={{fontSize:15,fontWeight:700,color:"#333"}}>{tareaEditando?"✏️ Editar tarea":"➕ Nueva tarea"}</h3>
+              <button onClick={()=>setModalTarea(false)} style={{border:"none",background:"#f5f5f5",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:"#666"}}>✕</button>
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Título *</label>
+              <input value={tareaForm.titulo||""} onChange={e=>setTareaForm(p=>({...p,titulo:e.target.value}))}
+                style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:13}} placeholder="¿Qué tienes que hacer?"/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Fecha *</label>
+                <input type="date" value={tareaForm.fecha||""} onChange={e=>setTareaForm(p=>({...p,fecha:e.target.value}))}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Hora (opcional)</label>
+                <input type="time" value={tareaForm.hora||""} onChange={e=>setTareaForm(p=>({...p,hora:e.target.value}))}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12}}/>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Prioridad</label>
+                <select value={tareaForm.prioridad||"Media"} onChange={e=>setTareaForm(p=>({...p,prioridad:e.target.value}))}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,background:"white"}}>
+                  {PRIORIDADES.map(p=><option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Aliado relacionado</label>
+                <select value={tareaForm.aliadoId||""} onChange={e=>setTareaForm(p=>({...p,aliadoId:e.target.value}))}
+                  style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,background:"white"}}>
+                  <option value="">Sin aliado</option>
+                  <optgroup label="── Programa de Aliados ──">
+                    {directorio.filter(a=>a.grupo==="programa"||!a.grupo).sort((a,b)=>a.empresa.localeCompare(b.empresa)).map(a=>(
+                      <option key={a.id} value={a.id}>{a.empresa}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="── Históricos ──">
+                    {directorio.filter(a=>a.grupo==="historico").sort((a,b)=>a.empresa.localeCompare(b.empresa)).map(a=>(
+                      <option key={a.id} value={a.id}>{a.empresa} ({a.ciudad})</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+            <div style={{marginBottom:18}}>
+              <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Notas</label>
+              <textarea value={tareaForm.notas||""} onChange={e=>setTareaForm(p=>({...p,notas:e.target.value}))}
+                rows={3} style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,resize:"vertical"}}
+                placeholder="Detalles adicionales..."/>
+            </div>
+            <div style={{display:"flex",justifyContent:"flex-end",gap:8}}>
+              <button onClick={()=>setModalTarea(false)} style={{padding:"8px 16px",borderRadius:6,border:"1px solid #ddd",background:"white",fontSize:12,cursor:"pointer",color:"#666"}}>Cancelar</button>
+              <button onClick={guardarTarea} disabled={!tareaForm.titulo||!tareaForm.titulo.trim()}
+                style={{padding:"8px 20px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer",opacity:(!tareaForm.titulo||!tareaForm.titulo.trim())?.5:1}}>
+                {tareaEditando?"Guardar cambios":"Crear tarea"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+    );
+  })()}
+
   {/* ══════ TAB GALERÍA ══════ */}
   {tab==="galeria"&&(()=>{
     const TIPOS_ACT_GAL=["Stand","Activación","Charla","Entrega de material","Evento general","Otro"];
