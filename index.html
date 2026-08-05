@@ -946,7 +946,11 @@ function App(){
           <p style={{fontSize:12,color:"#888",fontWeight:500}}>Programa de Aliados Sutherland TR · {hoyD.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"})}</p>
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {[{label:"Aliados Activos",n:progConfirmados.length,color:VERDE,bg:"#f0f7eb"},{label:"En Gestión",n:progGestion.length+progFormaliz.length+progRevision.length,color:NARANJA,bg:"#fff7f0"},{label:"Contactos",n:progContactos.length,color:AZUL,bg:"#e8f1fb"}].map(({label,n,color,bg})=>(
+          {[
+            {label:"Aliados activos totales",n:historicos.length+progConfirmados.length,color:VERDE,bg:"#f0f7eb"},
+            {label:"En gestión (programa)",n:progGestion.length+progFormaliz.length+progRevision.length,color:NARANJA,bg:"#fff7f0"},
+            {label:"Contactos directos",n:progContactos.length,color:AZUL,bg:"#e8f1fb"},
+          ].map(({label,n,color,bg})=>(
             <div key={label} style={{background:bg,borderRadius:8,padding:"6px 14px",display:"flex",alignItems:"center",gap:6}}>
               <span style={{fontSize:16,fontWeight:800,color}}>{n}</span>
               <span style={{fontSize:11,fontWeight:600,color:"#666"}}>{label}</span>
@@ -1012,9 +1016,22 @@ function App(){
         </div>
       </div>
 
-      {/* Total portafolio */}
-      <div style={{textAlign:"center",fontSize:11,color:"#aaa",fontWeight:600,marginTop:-20,marginBottom:20}}>
-        Total portafolio Sutherland TR: <span style={{color:"#555",fontWeight:800}}>{directorio.length} contactos</span> ({historicos.length} históricos + {programa.length} programa)
+      {/* Total portafolio + KPI destacado de aliados activos */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:-20,marginBottom:20,flexWrap:"wrap",gap:8}}>
+        <div style={{fontSize:11,color:"#aaa",fontWeight:600}}>
+          Total portafolio Sutherland TR: <span style={{color:"#555",fontWeight:800}}>{directorio.length} contactos</span> ({historicos.length} históricos + {programa.length} programa)
+        </div>
+        <div style={{background:"linear-gradient(135deg,"+VERDE+",#2d5a0e)",borderRadius:10,padding:"8px 20px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(59,109,17,.2)"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:26,fontWeight:900,color:"white",lineHeight:1}}>{historicos.length+progConfirmados.length}</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,.75)",fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginTop:2}}>Aliados activos totales</div>
+          </div>
+          <div style={{width:1,height:32,background:"rgba(255,255,255,.2)"}}/>
+          <div style={{fontSize:10,color:"rgba(255,255,255,.8)",lineHeight:1.5}}>
+            <div><span style={{fontWeight:800,color:"white"}}>{historicos.length}</span> históricos</div>
+            <div><span style={{fontWeight:800,color:"white"}}>{progConfirmados.length}</span> del programa</div>
+          </div>
+        </div>
       </div>
 
       {/* ══ BLOQUE A ══ */}
