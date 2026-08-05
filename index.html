@@ -1180,10 +1180,16 @@ function App(){
                       <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>{dia}</div>
                       {festivo&&<div style={{background:"#dc2626",color:"white",fontSize:9,fontWeight:700,borderRadius:4,padding:"2px 4px",marginBottom:3,lineHeight:1.2}}>{festivo}</div>}
                       <div style={{display:"grid",gap:3}}>
-                        {eventosDia.map(ev=>(
-                          <div key={ev.id} title={ev.tipo==="aliado"?(calAliados.find(a=>a.id===ev.aliadoId)||{}).nombre:ev.texto}
-                            style={{height:7,borderRadius:3,background:ev.tipo==="aliado"?colorAliado(calAliados,ev.aliadoId):"#dc2626"}}/>
-                        ))}
+                        {eventosDia.map(ev=>{
+                          const nombreEv=ev.tipo==="aliado"?(calAliados.find(a=>a.id===ev.aliadoId)||{}).nombre||"Aliado":ev.texto||"Nota";
+                          const colorEv=ev.tipo==="aliado"?colorAliado(calAliados,ev.aliadoId):"#dc2626";
+                          return(
+                            <div key={ev.id} title={nombreEv}
+                              style={{borderRadius:3,background:colorEv,padding:"2px 5px",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontSize:9,fontWeight:700,color:"rgba(0,0,0,.65)",lineHeight:1.4}}>
+                              {nombreEv}
+                            </div>
+                          );
+                        })}
                       </div>
                     </>}
                   </div>
