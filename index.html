@@ -101,14 +101,18 @@ const DIRECTORIO_INIT=[
   {id:"edenred_bigpass",grupo:"historico",empresa:"Edenred BigPass",contacto:"Beatriz Torres",categoria:"Dispersión Bonificaciones (ecard)",ciudad:"Nacional",correo:"beatriz.torres1@edenred.com",telefono:""},
   {id:"bink_card",grupo:"historico",empresa:"Bink Card",contacto:"Alfredo Díaz Ovalle",categoria:"Dispersión Bonificaciones (ecard)",ciudad:"Nacional",correo:"adiaz@binkcard.com",telefono:""},
   {id:"compensar",grupo:"historico",empresa:"Compensar",contacto:"Carlos Ernesto Restrepo Moncada",categoria:"Caja de compensación",ciudad:"Bogotá",correo:"cerestrepom@compensar.com",telefono:"(322) 4110805 "},
-  {id:"axa_colpatria",grupo:"historico",empresa:"AXA Colpatria & Lockton",contacto:"Jonathan Humberto Osuna / Keila Andrea Medina",categoria:"Corredor",ciudad:"Bogotá · Barranquilla",correo:"jonathan.osuna@lockton.com / keila.medina@axacolpatria.co",telefono:"",sedes:[{ciudad:"Bogotá",contacto:"Jonathan Humberto Osuna",correo:"jonathan.osuna@lockton.com"},{ciudad:"Barranquilla",contacto:"Keila Andrea Medina / Camilo Tovar",correo:"keila.medina@axacolpatria.co"}]},
+  {id:"axa_colpatria",grupo:"historico",convenio_padre:"axa",empresa:"AXA Colpatria",contacto:"Jonathan Humberto Osuna",categoria:"Corredor",ciudad:"Bogotá",correo:"jonathan.osuna@lockton.com",telefono:""},
+  {id:"axa_colp_lockton_baq",grupo:"historico",convenio_padre:"axa",empresa:"AXA Colp. & Lockton BAQ",contacto:"Keila Andrea Medina Rodríguez / Camilo Tovar",categoria:"Reporte BAQ",ciudad:"Barranquilla",correo:"keila.medina@axacolpatria.co",telefono:""},
   {id:"sanitas_eps",grupo:"historico",empresa:"Sanitas EPS",contacto:"Ivon Tatiana Hernández Correa",categoria:"EPS",ciudad:"Bogotá",correo:"ithernandez@epssanitas.com",telefono:""},
   {id:"bircham_executive",grupo:"historico",empresa:"Bircham Executive",contacto:"Roxana Michelle Hernández Alas",categoria:"Estudios",ciudad:"Bogotá",correo:"michelle.alas@bircham.edu",telefono:""},
-  {id:"politecnico_grancolombia",grupo:"historico",empresa:"Politécnico Grancolombiano",contacto:"John A. Rodríguez A. / Nellys Fernández",categoria:"Estudios",ciudad:"Bogotá · Barranquilla",correo:"jalexandrodriguez@poligran.edu.co / ndefernandez@poligran.edu.co",telefono:"",sedes:[{ciudad:"Bogotá",contacto:"John A. Rodríguez A.",correo:"jalexandrodriguez@poligran.edu.co"},{ciudad:"Barranquilla",contacto:"Nellys del Carmen Fernández Acosta",correo:"ndefernandez@poligran.edu.co"}]},
+  {id:"politecnico_grancolombia",grupo:"historico",convenio_padre:"politecnico",empresa:"Politécnico Grancolombiano",contacto:"John A. Rodríguez A.",categoria:"Estudios",ciudad:"Bogotá",correo:"jalexandrodriguez@poligran.edu.co",telefono:""},
+  {id:"politecnico_grancolombia_2",grupo:"historico",convenio_padre:"politecnico",empresa:"Politécnico Grancolombiano",contacto:"Nellys del Carmen Fernández Acosta",categoria:"Estudios",ciudad:"Barranquilla",correo:"ndefernandez@poligran.edu.co",telefono:""},
   {id:"smart_idiomas",grupo:"historico",empresa:"Smart Idiomas",contacto:"Martha Helena Sánchez / Vanessa Redondo",categoria:"Estudios",ciudad:"Bogotá",correo:"m.sanchez@smartidiomas.edu.co / vredondo@smartidiomas.edu.co",telefono:""},
-  {id:"bancolombia",grupo:"historico",empresa:"Bancolombia",contacto:"Jessica González / Juliana Pineda",categoria:"Financieros",ciudad:"Bogotá · Barranquilla",correo:"jvgonzal@bancolombia.com.co / jpineda@bancolombia.com.co",telefono:"3219997435 / 3108052895",sedes:[{ciudad:"Bogotá",contacto:"Jessica Viviana González Pinto",correo:"jvgonzal@bancolombia.com.co",telefono:"3219997435"},{ciudad:"Barranquilla",contacto:"Juliana Pineda Kerguelen",correo:"jpineda@bancolombia.com.co",telefono:"3108052895"}]},
+  {id:"bancolombia_bogota",grupo:"historico",convenio_padre:"bancolombia",empresa:"Bancolombia Bogotá",contacto:"Jessica Viviana González Pinto",categoria:"Financieros",ciudad:"Bogotá",correo:"jvgonzal@bancolombia.com.co",telefono:"3219997435"},
+  {id:"bancolombia_barranquilla",grupo:"historico",convenio_padre:"bancolombia",empresa:"Bancolombia Barranquilla",contacto:"Juliana Pineda Kerguelen",categoria:"Financieros",ciudad:"Barranquilla",correo:"jpineda@bancolombia.com.co",telefono:"3108052895"},
   {id:"fna_fondo_nacional_del_a",grupo:"historico",empresa:"FNA – Fondo Nacional del Ahorro",contacto:"Lida Marcela García Boborquez",categoria:"Fondo",ciudad:"Bogotá",correo:"lgarciab@fna.gov.co",telefono:""},
-  {id:"fincomercio",grupo:"historico",empresa:"Fincomercio",contacto:"Diego Pacheco / Lorainne Solano",categoria:"Fondo de empleados",ciudad:"Bogotá · Barranquilla",correo:"diepac@fincomercio.com / lorsol@fincomercio.com",telefono:"318 7067206 / 3168338685",sedes:[{ciudad:"Bogotá",contacto:"Diego Pacheco",correo:"diepac@fincomercio.com",telefono:"318 7067206"},{ciudad:"Barranquilla",contacto:"Lorainne Dayana Solano Corrales",correo:"lorsol@fincomercio.com",telefono:"3168338685"}]},
+  {id:"fincomercio_bogota",grupo:"historico",convenio_padre:"fincomercio",empresa:"Fincomercio Bogotá",contacto:"Diego Pacheco",categoria:"Fondo de empleados",ciudad:"Bogotá",correo:"diepac@fincomercio.com",telefono:"318 7067206"},
+  {id:"fincomercio_barranquilla",grupo:"historico",convenio_padre:"fincomercio",empresa:"Fincomercio Barranquilla",contacto:"Lorainne Dayana Solano Corrales",categoria:"Fondo de empleados",ciudad:"Barranquilla",correo:"lorsol@fincomercio.com",telefono:"3168338685"},
   {id:"comfamiliar_atlantico",grupo:"historico",empresa:"Comfamiliar Atlántico",contacto:"Mónica Patricia Urueta / Catherine Cure",categoria:"Caja de compensación",ciudad:"Barranquilla",correo:"inhouse03@comfamiliar.com.co / ccure@comfamiliar.com.co",telefono:"3018083044"},
   {id:"ceipa",grupo:"historico",empresa:"CEIPA",contacto:"Yeilen Nailea Guerrero Sierra",categoria:"Estudios",ciudad:"Barranquilla",correo:"yeilen_guerreros@ceipa.edu.co",telefono:""},
   {id:"colpensiones_barranquill",grupo:"historico",empresa:"Colpensiones Barranquilla",contacto:"Dilver Torres",categoria:"Fondo de pensión y cesantías",ciudad:"Barranquilla",correo:"dtorres@colpensiones.gov.co",telefono:""},
@@ -847,6 +851,9 @@ function App(){
 
     // ── Separación por grupo ──
     const historicos=directorio.filter(a=>a.grupo==="historico");
+    // Deduplicar por convenio_padre para KPIs (ej: Bancolombia BOG + BAQ = 1 único)
+    const historicosUnicosSet=new Set(historicos.map(a=>a.convenio_padre||a.id));
+    const historicosUnicos=historicosUnicosSet.size;
     const programa=directorio.filter(a=>a.grupo==="programa"||!a.grupo);
     const progConfirmados=programa.filter(a=>a.estado==="Confirmado");
     const progGestion=programa.filter(a=>a.estado==="En Gestión");
@@ -947,7 +954,7 @@ function App(){
         </div>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
           {[
-            {label:"Aliados activos totales",n:historicos.length+progConfirmados.length,color:VERDE,bg:"#f0f7eb"},
+            {label:"Aliados activos totales",n:historicosUnicos+progConfirmados.length,color:VERDE,bg:"#f0f7eb"},
             {label:"En gestión (programa)",n:progGestion.length+progFormaliz.length+progRevision.length,color:NARANJA,bg:"#fff7f0"},
             {label:"Contactos directos",n:progContactos.length,color:AZUL,bg:"#e8f1fb"},
           ].map(({label,n,color,bg})=>(
@@ -965,7 +972,8 @@ function App(){
         {/* BLOQUE IZQUIERDO — Convenios históricos */}
         <div style={{background:"#f8f9fa",border:"1.5px solid #dee2e6",borderRadius:14,padding:"20px 22px"}}>
           <div style={{fontSize:10,fontWeight:800,color:"#888",textTransform:"uppercase",letterSpacing:1.5,marginBottom:10}}>Convenios Históricos · Sutherland TR</div>
-          <div style={{fontSize:44,fontWeight:900,color:"#495057",lineHeight:1,letterSpacing:-1,marginBottom:6}}>{historicos.length}</div>
+          <div style={{fontSize:44,fontWeight:900,color:"#495057",lineHeight:1,letterSpacing:-1,marginBottom:6}}>{historicosUnicos}</div>
+          <div style={{fontSize:11,color:"#aaa",marginBottom:6}}>{historicos.length} registros · {historicosUnicos} convenios únicos</div>
           <div style={{fontSize:12,color:"#6c757d",lineHeight:1.5,marginBottom:14}}>Convenios vigentes implementados por Sutherland. Continúan activos y realizan visitas.</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
             {historicos.slice(0,6).map(h=>(
@@ -1019,16 +1027,16 @@ function App(){
       {/* Total portafolio + KPI destacado de aliados activos */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:-20,marginBottom:20,flexWrap:"wrap",gap:8}}>
         <div style={{fontSize:11,color:"#aaa",fontWeight:600}}>
-          Total portafolio Sutherland TR: <span style={{color:"#555",fontWeight:800}}>{directorio.length} contactos</span> ({historicos.length} históricos + {programa.length} programa)
+          Total portafolio Sutherland TR: <span style={{color:"#555",fontWeight:800}}>{directorio.length} contactos</span> ({historicos.length} registros históricos · {historicosUnicos} convenios únicos + {programa.length} programa)
         </div>
         <div style={{background:"linear-gradient(135deg,"+VERDE+",#2d5a0e)",borderRadius:10,padding:"8px 20px",display:"flex",alignItems:"center",gap:10,boxShadow:"0 2px 8px rgba(59,109,17,.2)"}}>
           <div style={{textAlign:"center"}}>
-            <div style={{fontSize:26,fontWeight:900,color:"white",lineHeight:1}}>{historicos.length+progConfirmados.length}</div>
+            <div style={{fontSize:26,fontWeight:900,color:"white",lineHeight:1}}>{historicosUnicos+progConfirmados.length}</div>
             <div style={{fontSize:9,color:"rgba(255,255,255,.75)",fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginTop:2}}>Aliados activos totales</div>
           </div>
           <div style={{width:1,height:32,background:"rgba(255,255,255,.2)"}}/>
           <div style={{fontSize:10,color:"rgba(255,255,255,.8)",lineHeight:1.5}}>
-            <div><span style={{fontWeight:800,color:"white"}}>{historicos.length}</span> históricos</div>
+            <div><span style={{fontWeight:800,color:"white"}}>{historicosUnicos}</span> históricos únicos</div>
             <div><span style={{fontWeight:800,color:"white"}}>{progConfirmados.length}</span> del programa</div>
           </div>
         </div>
@@ -2027,7 +2035,8 @@ function App(){
       {/* KPIs rápidos */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:20}}>
         {[
-          {label:"Convenios vigentes",val:listaHist.length,color:"#495057",bg:"#f8f9fa",icon:"🏛️"},
+          {label:"Convenios únicos",val:new Set(listaHist.map(a=>a.convenio_padre||a.id)).size,color:"#495057",bg:"#f8f9fa",icon:"🏛️"},
+          {label:"Registros de contacto",val:listaHist.length,color:"#6c757d",bg:"#f8f9fa",icon:"📋"},
           {label:"Visitas registradas",val:visitasHist.length,color:PURP,bg:"#faf7ff",icon:"📍"},
           {label:"Próximas programadas",val:proximasHist.length,color:AZUL,bg:"#e8f1fb",icon:"📅"},
           {label:"Ciudades con presencia",val:new Set(listaHist.map(a=>a.ciudad).filter(Boolean)).size,color:VERDE,bg:"#f0f7eb",icon:"📍"},
