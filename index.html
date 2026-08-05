@@ -533,6 +533,12 @@ function App(){
   const [aliadoForm,setAliadoForm]=useState({});
   const [modalEliminar,setModalEliminar]=useState(null); // id del aliado a eliminar
   const [visitas,setVisitas]=useState(()=>_lsData?.visitas||[]);
+  const [tareas,setTareas]=useState(()=>_lsData?.tareas||[]);
+  const [tareasOrden,setTareasOrden]=useState("fecha"); // "fecha"|"prioridad"
+  const [tareasFiltro,setTareasFiltro]=useState("pendientes"); // "pendientes"|"hoy"|"vencidas"|"completadas"|"todas"
+  const [modalTarea,setModalTarea]=useState(false);
+  const [tareaEditando,setTareaEditando]=useState(null);
+  const [tareaForm,setTareaForm]=useState({});
   const [visSelAliadoId,setVisSelAliadoId]=useState(null);
   const [histFiltro,setHistFiltro]=useState("");
   const [histVista,setHistVista]=useState("directorio");
@@ -587,6 +593,7 @@ function App(){
         if(datos.sedesConfig) setSedesConfig(datos.sedesConfig);
         if(datos.galeria) setGaleria(datos.galeria);
         if(datos.visitas) setVisitas(datos.visitas);
+        if(datos.tareas) setTareas(datos.tareas);
         if(datos._at) setLastSaved(new Date(datos._at));
       }
       setInitDone(true);
@@ -600,7 +607,7 @@ function App(){
     setSaveStatus("guardando");
     if(timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current=setTimeout(async()=>{
-      const payload={calEventos,calAliados,directorio,sedesConfig,galeria,visitas};
+      const payload={calEventos,calAliados,directorio,sedesConfig,galeria,visitas,tareas};
       lsSaveLocal(payload); // respaldo local inmediato
       const ok=await supaGuardar(payload); // guarda en la nube
       const ahora=new Date();
@@ -608,7 +615,7 @@ function App(){
       setSaveStatus(ok?"guardado":"guardado_local");
       setTimeout(()=>setSaveStatus(""),3500);
     },600);
-  },[calEventos,calAliados,directorio,sedesConfig,galeria,visitas,initDone]);
+  },[calEventos,calAliados,directorio,sedesConfig,galeria,visitas,tareas,initDone]);
 
   // ── CRUD UNIFICADO DE ALIADOS ──────────────────────────────
   const aliadoVacio=(estadoDefault,grupoDefault)=>({
@@ -722,6 +729,40 @@ function App(){
 
   // ══ Control de Visitas y Gestion Mensual ══
   const abrirNuevaVisita=(aliadoId)=>{ setVisitaEditando(visitaVacia(aliadoId)); setShowModalVisita(true); };
+  // ── TAREAS: CRUD y semáforo ──
+  const PRIORIDADES=["Alta","Media","Baja"];
+  const tareaVacia=(aliadoId)=>({
+    id:"tarea_"+Date.now(),titulo:"",
+    fecha:new Date().toISOString().slice(0,10),hora:"",
+    prioridad:"Media",aliadoId:aliadoId||"",notas:"",
+    completada:false,creadaEn:new Date().toISOString(),
+  });
+  const semaforo=(tarea)=>{
+    if(tarea.completada) return{color:"#22c55e",emoji:"🟢",label:"Completada"};
+    const hoyStrT=new Date().toISOString().slice(0,10);
+    const ahora=new Date();
+    if(tarea.fecha<hoyStrT) return{color:"#ef4444",emoji:"🔴",label:"Vencida"};
+    if(tarea.fecha===hoyStrT){
+      if(tarea.hora){const[h,m]=tarea.hora.split(":").map(Number);const vence=new Date();vence.setHours(h,m,0,0);if(vence<ahora)return{color:"#ef4444",emoji:"🔴",label:"Vencida"};if((vence-ahora)/(1000*60*60)<=2)return{color:"#f59e0b",emoji:"🟡",label:"Próxima ("+tarea.hora+")"};}
+      return{color:"#f59e0b",emoji:"🟡",label:"Para hoy"};
+    }
+    return{color:"#94a3b8",emoji:"⚪",label:"Futura"};
+  };
+  const abrirNuevaTarea=(aliadoId)=>{setTareaEditando(null);setTareaForm(tareaVacia(aliadoId||""));setModalTarea(true);};
+  const abrirEditarTarea=(t)=>{setTareaEditando(t);setTareaForm({...t});setModalTarea(true);};
+  const reprogramarTarea=(t)=>{setTareaEditando(t);setTareaForm({...t,completada:false,fecha:new Date().toISOString().slice(0,10)});setModalTarea(true);};
+  const guardarTarea=()=>{
+    if(!tareaForm.titulo||!tareaForm.titulo.trim()) return;
+    if(tareaEditando){setTareas(p=>p.map(t=>t.id===tareaForm.id?{...tareaForm}:t));}
+    else{setTareas(p=>[...p,{...tareaForm,id:"tarea_"+Date.now()}]);}
+    setModalTarea(false);setTareaEditando(null);setTareaForm({});
+  };
+  const toggleTarea=(id)=>setTareas(p=>p.map(t=>t.id===id?{...t,completada:!t.completada}:t));
+  const eliminarTarea=(id)=>setTareas(p=>p.filter(t=>t.id!==id));
+  const hoyStr=new Date().toISOString().slice(0,10);
+  const tareasVencidas=tareas.filter(t=>!t.completada&&t.fecha<hoyStr);
+  const tareasHoy=tareas.filter(t=>!t.completada&&t.fecha===hoyStr);
+  const tareasBadge=tareasVencidas.length+tareasHoy.length;
   const abrirEditarVisita=(v)=>{ setVisitaViendo(null); setVisitaEditando(v); setShowModalVisita(true); };
   const guardarVisita=(data)=>{
     setVisitas(p=>{
@@ -832,6 +873,10 @@ function App(){
     <button style={TS("programa")} onClick={()=>setTab("programa")}>🤝 Programa de Aliados</button>
     <button style={TS("historicos")} onClick={()=>setTab("historicos")}>🏛️ Convenios Históricos</button>
     <button style={TS("calendario")} onClick={()=>setTab("calendario")}>📅 Calendario</button>
+    <button style={{...TS("tareas"),position:"relative"}} onClick={()=>setTab("tareas")}>
+      ✅ Tareas
+      {tareasBadge>0&&<span style={{position:"absolute",top:6,right:4,background:"#ef4444",color:"white",borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>{tareasBadge>9?"9+":tareasBadge}</span>}
+    </button>
     <button style={TS("galeria")} onClick={()=>setTab("galeria")}>🖼️ Galería</button>
   </div>
 
