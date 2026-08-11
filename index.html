@@ -928,7 +928,7 @@ function App(){
       if(a.estado==="Confirmado"||a.estado==="Contacto") return false;
       if(!a.fechaUltimoContacto) return true;
       const dias=Math.floor((hoyMs2-new Date(a.fechaUltimoContacto).getTime())/(1000*60*60*24));
-      return dias>30;
+      return dias>15;
     });
 
     // Tiempo promedio en gestión (de contacto a confirmado, usando historialEstados)
@@ -1243,10 +1243,10 @@ function App(){
           <KpiCard
             valor={estancados.length}
             label="Procesos estancados"
-            sub={estancados.length>0?"Sin contacto registrado en +30 días":"✓ Todos los procesos activos al día"}
+            sub={estancados.length>0?"Sin contacto registrado en +15 días":"✓ Todos los procesos activos al día"}
             color={estancados.length>0?"#ef4444":VERDE}
             bg={estancados.length>0?"#fff1f2":"#f0f7eb"}
-            desc="Aliados en gestión, revisión o formalización sin actualización de contacto en más de 30 días. Requieren acción inmediata."
+            desc="Aliados en gestión, revisión o formalización sin actualización en más de 15 días. Alerta temprana para intervenir antes de que el proceso se enfríe."
             badge={estancados.length>0?{text:"⚠️ Intervenir",bg:"#fee2e2",color:"#dc2626"}:null}/>
           <KpiCard
             valor={etapaCuello.lista.length>0?etapaCuello.label:"—"}
