@@ -895,13 +895,10 @@ function App(){
     const progFormaliz=programa.filter(a=>a.estado==="En Formalización");
     const progContactos=programa.filter(a=>a.estado==="Contacto");
 
-    // ── Bloque A ──
+    // ── Bloque A: Crecimiento ──
     const nuevosEsteMes=confirmados.filter(a=>{if(!a.fechaInicioConvenio)return false;const f=new Date(a.fechaInicioConvenio);return f.getMonth()===mesActual&&f.getFullYear()===anioActual;});
     const nuevosMesPasado=confirmados.filter(a=>{if(!a.fechaInicioConvenio)return false;const f=new Date(a.fechaInicioConvenio);return f.getMonth()===mesPasado&&f.getFullYear()===anioPasadoD;});
     const pctCrecimiento=nuevosMesPasado.length>0?Math.round(((nuevosEsteMes.length-nuevosMesPasado.length)/nuevosMesPasado.length)*100):null;
-    const CATS_REF=["Salud","Tecnología","Transporte","Turismo","Deporte","Gastronomía","Educación","Entretenimiento","Moda","Bienestar","Alimentos","Movilidad","Accesorios","Hoteles","Viajes"];
-    const catsCubiertas=new Set(confirmados.map(a=>a.categoria).filter(Boolean));
-    const catsSinCobertura=CATS_REF.filter(c=>![...catsCubiertas].some(cc=>cc.toLowerCase().includes(c.toLowerCase())));
     const evolucion={};
     confirmados.forEach(a=>{if(!a.fechaInicioConvenio)return;const f=new Date(a.fechaInicioConvenio);const key=f.getFullYear()+"-"+(String(f.getMonth()+1).padStart(2,"0"));evolucion[key]=(evolucion[key]||0)+1;});
     const evKeys=Object.keys(evolucion).sort();
@@ -909,17 +906,46 @@ function App(){
     const evAcum=evKeys.map(k=>{acum+=evolucion[k];return{mes:k,total:acum,nuevos:evolucion[k]};});
     const hayFechas=confirmados.some(a=>a.fechaInicioConvenio);
 
-    // ── Bloque B (Cobertura) ──
-    const porCat={};
-    confirmados.forEach(a=>{const c=a.categoria||"Sin categoría";porCat[c]=(porCat[c]||0)+1;});
-    const catEntries=Object.entries(porCat).sort((a,b)=>b[1]-a[1]);
-    const maxCat=catEntries.length>0?catEntries[0][1]:1;
-    const conFamilia=confirmados.filter(a=>a.aplicaFamilia);
-    const pctFamilia=confirmados.length>0?Math.round((conFamilia.length/confirmados.length)*100):0;
-    const porCiudad={};
-    confirmados.forEach(a=>{if(a.ciudad&&a.ciudad.trim()){const c=a.ciudad.trim();porCiudad[c]=(porCiudad[c]||0)+1;}});
-    const ciudadEntries=Object.entries(porCiudad).sort((a,b)=>b[1]-a[1]);
-    const maxCiudad=ciudadEntries.length>0?ciudadEntries[0][1]:1;
+    // ── Bloque B: Salud del proceso (solo programa) ──
+    const ETAPAS_PROG=[
+      {key:"Contacto",       label:"Contacto",        color:"#94a3b8", lista:progContactos},
+      {key:"En Gestión",     label:"En Gestión",      color:NARANJA,   lista:progGestion},
+      {key:"En Revisión",    label:"En Revisión",     color:"#d97706", lista:progRevision},
+      {key:"En Formalización",label:"En Formalización",color:"#b45309",lista:progFormaliz},
+      {key:"Confirmado",     label:"Aliado Activo",   color:VERDE,     lista:progConfirmados},
+    ];
+    const totalProg=programa.length||1;
+
+    // Etapa con mayor acumulación (cuello de botella)
+    const etapaCuello=ETAPAS_PROG.slice(0,4).reduce((max,e)=>e.lista.length>max.lista.length?e:max, ETAPAS_PROG[0]);
+
+    // Tasa de conversión global del programa
+    const tasaConvProg=programa.length>0?Math.round((progConfirmados.length/programa.length)*100):0;
+
+    // Aliados estancados: en gestión/revisión/formalización con fechaUltimoContacto > 30 días o sin fecha
+    const hoyMs2=new Date().getTime();
+    const estancados=programa.filter(a=>{
+      if(a.estado==="Confirmado"||a.estado==="Contacto") return false;
+      if(!a.fechaUltimoContacto) return true;
+      const dias=Math.floor((hoyMs2-new Date(a.fechaUltimoContacto).getTime())/(1000*60*60*24));
+      return dias>30;
+    });
+
+    // Tiempo promedio en gestión (de contacto a confirmado, usando historialEstados)
+    const tiemposConversion=confirmados.filter(a=>a.historialEstados&&a.historialEstados.length>=2).map(a=>{
+      const primero=new Date(a.historialEstados[0].fecha);
+      const ultimo=new Date(a.historialEstados[a.historialEstados.length-1].fecha);
+      return Math.max(0,Math.round((ultimo-primero)/(1000*60*60*24)));
+    });
+    const promDias=tiemposConversion.length>0?Math.round(tiemposConversion.reduce((s,d)=>s+d,0)/tiemposConversion.length):null;
+
+    // Tasas de conversión por etapa (paso a paso)
+    const tasasEtapa=[
+      {de:"Contacto",a:"En Gestión",nDe:progContactos.length+progGestion.length+progRevision.length+progFormaliz.length+progConfirmados.length,nA:progGestion.length+progRevision.length+progFormaliz.length+progConfirmados.length},
+      {de:"En Gestión",a:"En Revisión",nDe:progGestion.length+progRevision.length+progFormaliz.length+progConfirmados.length,nA:progRevision.length+progFormaliz.length+progConfirmados.length},
+      {de:"En Revisión",a:"En Formalización",nDe:progRevision.length+progFormaliz.length+progConfirmados.length,nA:progFormaliz.length+progConfirmados.length},
+      {de:"En Formalización",a:"Activo",nDe:progFormaliz.length+progConfirmados.length,nA:progConfirmados.length},
+    ].map(t=>({...t,tasa:t.nDe>0?Math.round((t.nA/t.nDe)*100):0}));
 
 
 
@@ -1173,91 +1199,125 @@ function App(){
         );
       })()}
 
-      {/* ══ BLOQUE A ══ */}
+      {/* ══ BLOQUE A: CRECIMIENTO ══ */}
       <div style={{marginBottom:32}}>
-        <SecHeader color={AZUL} letra="A" titulo="Tamaño y Crecimiento del Portafolio" pregunta="¿Cuántos convenios tenemos y cómo estamos creciendo?"/>
+        <SecHeader color={AZUL} letra="A" titulo="Crecimiento del Portafolio" pregunta="¿Cuántos aliados tenemos y cómo estamos creciendo?"/>
 
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
-          <KpiCard valor={directorio.length} label="Total de contactos en el directorio" sub="Todos los registros gestionados por el área de Alianzas" color="#111" desc="Total de empresas en el directorio: confirmadas + en formalización + contactos iniciales."/>
-          <KpiCard valor={confirmados.length} label="Convenios activos" sub={confirmados.length>0?confirmados.length+" convenio"+(confirmados.length!==1?"s":"")+" confirmado"+(confirmados.length!==1?"s":""):"Sin convenios confirmados aún"} color={VERDE} bg="#f0f7eb" desc="Únicamente aliados con convenio cerrado y beneficio disponible para los colaboradores."/>
-          <KpiCard valor={nuevosEsteMes.length>0?"+"+nuevosEsteMes.length:"—"} label="Nuevos este mes" sub={!hayFechas?"Activa con fechas de inicio registradas":"Convenios confirmados en "+hoyD.toLocaleDateString("es-CO",{month:"long",year:"numeric"})} color={nuevosEsteMes.length>0?VERDE:"#bbb"} bg={nuevosEsteMes.length>0?"#f0f7eb":"white"}
+          <KpiCard valor={directorio.length} label="Total contactos en el directorio" sub="Confirmados + En proceso + Contactos iniciales" color="#111" desc="Universo total gestionado por el área de Alianzas."/>
+          <KpiCard valor={progConfirmados.length} label="Aliados activos del programa" sub={programa.length>0?tasaConvProg+"% de conversión del programa":"Sin datos"} color={VERDE} bg="#f0f7eb" desc="Aliados del programa con convenio confirmado y activo."/>
+          <KpiCard valor={nuevosEsteMes.length>0?"+"+nuevosEsteMes.length:"—"} label="Nuevos este mes" sub={!hayFechas?"Registra fechas de inicio para activar":hoyD.toLocaleDateString("es-CO",{month:"long",year:"numeric"})} color={nuevosEsteMes.length>0?VERDE:"#bbb"} bg={nuevosEsteMes.length>0?"#f0f7eb":"white"}
             badge={pctCrecimiento!==null?{text:(pctCrecimiento>=0?"↑ +":"↓ ")+pctCrecimiento+"%",bg:pctCrecimiento>=0?"#dcfce7":"#fee2e2",color:pctCrecimiento>=0?"#166534":"#991b1b"}:null}
-            desc="Convenios confirmados este mes. La flecha ↑↓ indica variación frente al mes anterior."/>
-          <KpiCard valor={catsCubiertas.size} label="Categorías cubiertas" sub={"de "+CATS_REF.length+" categorías de referencia"} color="#7c3aed" bg="#faf5ff" desc="Diversidad del catálogo. Más categorías = portafolio más completo para los colaboradores."/>
+            desc="Aliados confirmados este mes vs mes anterior."/>
+          <KpiCard valor={promDias!==null?promDias+"d":"—"} label="Tiempo promedio de formalización" sub={promDias!==null?"De contacto a aliado activo":hayFechas?"Registra historial de estados":"Sin datos suficientes"} color={promDias===null?"#bbb":promDias<=30?VERDE:promDias<=60?NARANJA:"#ef4444"} bg={promDias===null?"white":promDias<=30?"#f0f7eb":promDias<=60?"#fff7f0":"#fff1f2"} desc="Días promedio que tarda un aliado desde el primer contacto hasta confirmarse."/>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-          <Panel>
-            <PanelTitle sub="¿En qué etapa está cada oportunidad? El objetivo es mover todo hacia Confirmados.">Composición del portafolio</PanelTitle>
-            {[{label:"✅ Confirmados",n:confirmados.length,color:VERDE},{label:"⏳ En Gestión",n:enGestion.length,color:NARANJA},{label:"📞 Contactos",n:contactos.length,color:AZUL}].map(({label,n,color})=>(
-              <Barra key={label} label={label} valor={n+" aliado"+(n!==1?"s":"")} pct={directorio.length>0?Math.round((n/directorio.length)*100):0} color={color}/>
-            ))}
-          </Panel>
-
-          <Panel>
-            <PanelTitle sub={hayFechas?"¿Cómo ha crecido el número de convenios mes a mes?":"Registra 'Fecha de inicio' en cada convenio para activar esta gráfica."}>Evolución mensual de convenios</PanelTitle>
-            {evAcum.length>0?(
-              <div>
-                <div style={{display:"flex",alignItems:"flex-end",gap:5,height:80,marginBottom:6}}>
-                  {evAcum.map((e,i)=>(
-                    <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                      <span style={{fontSize:10,fontWeight:800,color:VERDE}}>{e.total}</span>
-                      <div style={{width:"100%",background:VERDE,borderRadius:"3px 3px 0 0",height:Math.round((e.total/Math.max(...evAcum.map(x=>x.total),1))*60)+"px",minHeight:4,opacity:.85}}/>
-                      {e.nuevos>0&&<span style={{fontSize:9,color:NARANJA,fontWeight:700}}>+{e.nuevos}</span>}
-                      <span style={{fontSize:9,color:"#aaa"}}>{e.mes.slice(5)}/{e.mes.slice(2,4)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{fontSize:10,color:"#ccc",textAlign:"center"}}>Verde = acumulado · Naranja = nuevos ese mes</div>
+        <Panel mb={0}>
+          <PanelTitle sub={hayFechas?"¿Cómo ha crecido el número de aliados confirmados mes a mes?":"Registra 'Fecha de inicio' en cada aliado para activar esta gráfica."}>Evolución mensual de aliados confirmados</PanelTitle>
+          {evAcum.length>0?(
+            <div>
+              <div style={{display:"flex",alignItems:"flex-end",gap:5,height:80,marginBottom:6}}>
+                {evAcum.map((e,i)=>(
+                  <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                    <span style={{fontSize:10,fontWeight:800,color:VERDE}}>{e.total}</span>
+                    <div style={{width:"100%",background:VERDE,borderRadius:"3px 3px 0 0",height:Math.round((e.total/Math.max(...evAcum.map(x=>x.total),1))*60)+"px",minHeight:4,opacity:.85}}/>
+                    {e.nuevos>0&&<span style={{fontSize:9,color:NARANJA,fontWeight:700}}>+{e.nuevos}</span>}
+                    <span style={{fontSize:9,color:"#aaa"}}>{e.mes.slice(5)}/{e.mes.slice(2,4)}</span>
+                  </div>
+                ))}
               </div>
-            ):(
-              <div style={{textAlign:"center",padding:"20px 0",color:"#ccc",fontSize:12}}>Sin datos de fecha registrados aún.</div>
-            )}
-          </Panel>
-        </div>
-
-        {catsSinCobertura.length>0&&(
-          <Panel>
-            <PanelTitle sub="Ninguno de estos sectores tiene convenio activo. Son las prioridades de gestión.">🎯 Oportunidades de expansión ({catsSinCobertura.length} categorías sin cobertura)</PanelTitle>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {catsSinCobertura.map(c=>(
-                <span key={c} style={{background:"#fff7ed",color:"#9a3412",border:"1px solid #fed7aa",padding:"4px 12px",borderRadius:20,fontSize:11,fontWeight:600}}>{c}</span>
-              ))}
+              <div style={{fontSize:10,color:"#ccc",textAlign:"center"}}>Verde = acumulado · Naranja = nuevos ese mes</div>
             </div>
-          </Panel>
-        )}
+          ):(
+            <div style={{textAlign:"center",padding:"20px 0",color:"#ccc",fontSize:12}}>Sin datos de fecha de inicio registrados aún.</div>
+          )}
+        </Panel>
       </div>
 
-      {/* ══ BLOQUE B: CALIDAD Y COBERTURA ══ */}
+      {/* ══ BLOQUE B: SALUD DEL PROCESO ══ */}
       <div style={{marginBottom:32}}>
-        <SecHeader color="#7c3aed" letra="B" titulo="Calidad y Cobertura del Portafolio" pregunta="¿Qué tan completo es nuestro portafolio y dónde estamos presentes?"/>
+        <SecHeader color="#ef4444" letra="B" titulo="Salud del Proceso" pregunta="¿Dónde están los cuellos de botella y qué necesita intervención?"/>
 
+        {/* KPIs de alerta */}
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
-          <KpiCard valor={pctFamilia+"%"} label="Convenios que aplican a familia" sub={conFamilia.length+" de "+confirmados.length+" convenios activos"} color="#7c3aed" bg="#faf5ff" desc="Porcentaje del portafolio confirmado cuyos beneficios se extienden a familiares."/>
-          <KpiCard valor={enGestion.length} label="Aliados en formalización" sub={"Negociaciones activas hacia convenio confirmado"} color={NARANJA} bg="#fff7f0" desc="Estos aliados están en proceso activo. El objetivo es que todos lleguen a 'Confirmado'."/>
-          <KpiCard valor={catEntries.length} label="Categorías con cobertura activa" sub={catEntries.length>0?"Mayor cobertura: "+catEntries[0][0]:"Sin convenios confirmados"} color={VERDE} bg="#f0f7eb" desc="Categorías distintas representadas en el portafolio confirmado."/>
-          <KpiCard valor={ciudadEntries.length||"—"} label="Ciudades con cobertura" sub={ciudadEntries.length>0?"Mayor presencia: "+ciudadEntries[0][0]:"Registra ciudad en aliados para activar"} color={AZUL} bg="#e8f1fb" desc="Ciudades con al menos un convenio confirmado."/>
+          <KpiCard
+            valor={estancados.length}
+            label="Procesos estancados"
+            sub={estancados.length>0?"Sin contacto registrado en +30 días":"✓ Todos los procesos activos al día"}
+            color={estancados.length>0?"#ef4444":VERDE}
+            bg={estancados.length>0?"#fff1f2":"#f0f7eb"}
+            desc="Aliados en gestión, revisión o formalización sin actualización de contacto en más de 30 días. Requieren acción inmediata."
+            badge={estancados.length>0?{text:"⚠️ Intervenir",bg:"#fee2e2",color:"#dc2626"}:null}/>
+          <KpiCard
+            valor={etapaCuello.lista.length>0?etapaCuello.label:"—"}
+            label="Mayor acumulación (cuello de botella)"
+            sub={etapaCuello.lista.length>0?etapaCuello.lista.length+" aliado"+(etapaCuello.lista.length!==1?"s":"")+" acumulado"+(etapaCuello.lista.length!==1?"s":"")+" en esta etapa":"Sin acumulación detectada"}
+            color={etapaCuello.color}
+            bg="#fafafa"
+            desc="Etapa del programa con más aliados acumulados. Si es alta, hay un cuello de botella que requiere gestión."/>
+          <KpiCard
+            valor={tasaConvProg+"%"}
+            label="Tasa de conversión del programa"
+            sub={progConfirmados.length+" activos de "+programa.length+" en el programa"}
+            color={tasaConvProg>=30?VERDE:tasaConvProg>=15?NARANJA:"#ef4444"}
+            bg={tasaConvProg>=30?"#f0f7eb":tasaConvProg>=15?"#fff7f0":"#fff1f2"}
+            desc="Porcentaje de aliados del programa que llegaron a Confirmado. Meta sugerida: +30%."/>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {/* Embudo por etapa con porcentajes */}
           <Panel>
-            <PanelTitle sub="¿En qué categorías estamos más fuertes y cuáles necesitan más aliados?">Convenios por categoría</PanelTitle>
-            {catEntries.length>0?(
-              catEntries.map(([cat,n],i)=>(
-                <Barra key={i} label={cat} valor={n+" aliado"+(n!==1?"s":"")} pct={Math.round((n/maxCat)*100)} color={PALETA[i%PALETA.length]}/>
-              ))
-            ):(
-              <div style={{textAlign:"center",color:"#ccc",fontSize:12,padding:"20px 0"}}>Sin convenios confirmados aún.</div>
-            )}
+            <PanelTitle sub="¿En qué etapa hay más aliados acumulados? Barras más largas = mayor acumulación.">Distribución por etapa del programa</PanelTitle>
+            {ETAPAS_PROG.map(({label,color,lista})=>{
+              const pct=Math.round((lista.length/totalProg)*100);
+              const esCuello=etapaCuello.label===label&&lista.length>0;
+              return(
+                <div key={label} style={{marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                    <span style={{fontSize:12,fontWeight:600,color:"#333",display:"flex",alignItems:"center",gap:6}}>
+                      {label}
+                      {esCuello&&<span style={{fontSize:9,fontWeight:700,background:"#fee2e2",color:"#dc2626",padding:"1px 6px",borderRadius:10}}>cuello</span>}
+                    </span>
+                    <span style={{fontSize:12,fontWeight:800,color}}>{lista.length} <span style={{fontSize:10,color:"#aaa",fontWeight:400}}>({pct}%)</span></span>
+                  </div>
+                  <div style={{background:"#f0f0f0",borderRadius:6,height:10,overflow:"hidden"}}>
+                    <div style={{background:color,width:pct+"%",height:"100%",borderRadius:6,transition:"width .5s",
+                      boxShadow:esCuello?"inset 0 0 0 2px rgba(239,68,68,.4)":"none"}}/>
+                  </div>
+                </div>
+              );
+            })}
           </Panel>
+
+          {/* Tasa de conversión por etapa */}
           <Panel>
-            <PanelTitle sub={ciudadEntries.length>0?"¿En qué ciudades tenemos cobertura activa y cuáles no tienen ningún convenio?":"Registra la ciudad en cada aliado para activar este panel."}>Distribución geográfica</PanelTitle>
-            {ciudadEntries.length>0?(
-              ciudadEntries.map(([ciudad,n],i)=>(
-                <Barra key={i} label={ciudad} valor={n+" aliado"+(n!==1?"s":"")} pct={Math.round((n/maxCiudad)*100)} color={AZUL}/>
-              ))
-            ):(
-              <div style={{textAlign:"center",color:"#ccc",fontSize:12,padding:"20px 0"}}>Sin datos de ciudad registrados.</div>
+            <PanelTitle sub="¿En qué paso se pierden más aliados? Tasas bajas = mayor fricción en esa transición.">Conversión paso a paso</PanelTitle>
+            {tasasEtapa.map((t,i)=>{
+              const colorTasa=t.tasa>=60?VERDE:t.tasa>=35?NARANJA:"#ef4444";
+              return(
+                <div key={i} style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:11,color:"#555",fontWeight:600}}>{t.de} → {t.a}</span>
+                    <span style={{fontSize:13,fontWeight:800,color:colorTasa}}>{t.tasa}%</span>
+                  </div>
+                  <div style={{background:"#f0f0f0",borderRadius:6,height:8,overflow:"hidden"}}>
+                    <div style={{background:colorTasa,width:t.tasa+"%",height:"100%",borderRadius:6,transition:"width .5s"}}/>
+                  </div>
+                  {t.tasa<35&&t.nDe>0&&<div style={{fontSize:9,color:"#ef4444",marginTop:3,fontWeight:600}}>⚠️ Baja conversión — revisar por qué los aliados no avanzan de esta etapa</div>}
+                </div>
+              );
+            })}
+            {estancados.length>0&&(
+              <div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #f0f0f0"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#ef4444",marginBottom:6}}>🔴 Procesos que requieren acción</div>
+                {estancados.slice(0,4).map(a=>(
+                  <div key={a.id} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:"1px solid #f9f9f9"}}>
+                    <span style={{color:"#333",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"60%"}}>{a.empresa}</span>
+                    <span style={{color:"#ef4444",fontWeight:600,flexShrink:0}}>{a.estado} · {a.fechaUltimoContacto?"hace "+(Math.floor((hoyMs2-new Date(a.fechaUltimoContacto).getTime())/(1000*60*60*24)))+"d":"sin fecha"}</span>
+                  </div>
+                ))}
+                {estancados.length>4&&<div style={{fontSize:10,color:"#aaa",marginTop:4}}>+{estancados.length-4} más — revisar en el Directorio</div>}
+              </div>
             )}
           </Panel>
         </div>
