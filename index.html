@@ -245,10 +245,14 @@ function getCalendarWeeks(anio,mes){
 function uid(){return Math.random().toString(36).slice(2,9);}
 
 /* ══ MODAL DIA (CALENDARIO) ══ */
-function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel}){
+function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel,onToggleAsistencia}){
   const [aliadoSel,setAliadoSel]=useState(aliados[0]?aliados[0].id:"");
   const [nota,setNota]=useState("");
   const titulo=`${fecha.dia} de ${MESES[fecha.mes]} de ${fecha.anio}`;
+  const hoyStr=new Date().toISOString().slice(0,10);
+  const fechaEvStr=`${fecha.anio}-${String(fecha.mes+1).padStart(2,"0")}-${String(fecha.dia).padStart(2,"0")}`;
+  const esPasado=fechaEvStr<=hoyStr;
+
   return(
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
       <div className="modal-box">
@@ -258,25 +262,50 @@ function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel}){
           <div style={{display:"grid",gap:6,marginBottom:16}}>
             {eventos.map(ev=>{
               const al=ev.tipo==="aliado"?aliados.find(a=>a.id===ev.aliadoId):null;
-              return(<div key={ev.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"#f8f8f8",borderRadius:7}}>
-                {ev.tipo==="aliado"?(
-                  <><span style={{width:14,height:14,borderRadius:3,background:colorAliado(aliados,ev.aliadoId),flexShrink:0}}/>
-                  <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>{al?al.emoji+" "+al.nombre:"(aliado eliminado)"}</span></>
-                ):(
-                  <><span style={{width:14,height:14,borderRadius:3,background:"#dc2626",flexShrink:0}}/>
-                  <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>🔴 {ev.texto}</span></>
-                )}
-                <button className="btn-danger" onClick={()=>onDel(ev.id)}>Quitar</button>
-              </div>);
+              return(
+                <div key={ev.id} style={{padding:"8px 10px",background:"#f8f8f8",borderRadius:8,border:"1px solid #eee"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {ev.tipo==="aliado"?(
+                      <><span style={{width:12,height:12,borderRadius:3,background:colorAliado(aliados,ev.aliadoId),flexShrink:0}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>{al?al.nombre:"(aliado eliminado)"}</span></>
+                    ):(
+                      <><span style={{width:12,height:12,borderRadius:3,background:"#dc2626",flexShrink:0}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>🔴 {ev.texto}</span></>
+                    )}
+                    <button className="btn-danger" onClick={()=>onDel(ev.id)}>Quitar</button>
+                  </div>
+
+                  {/* Check de asistencia — solo para eventos de aliado y fechas pasadas/hoy */}
+                  {ev.tipo==="aliado"&&esPasado&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #eee"}}>
+                      <span style={{fontSize:10,color:"#888",fontWeight:600,marginRight:4}}>Asistencia:</span>
+                      <button
+                        onClick={()=>onToggleAsistencia(ev.id,ev.asistio===true?null:true)}
+                        style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:6,border:"1.5px solid "+(ev.asistio===true?"#22c55e":"#ddd"),background:ev.asistio===true?"#dcfce7":"white",color:ev.asistio===true?"#166534":"#888",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        ☑️ Asistió
+                      </button>
+                      <button
+                        onClick={()=>onToggleAsistencia(ev.id,ev.asistio===false?null:false)}
+                        style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:6,border:"1.5px solid "+(ev.asistio===false?"#ef4444":"#ddd"),background:ev.asistio===false?"#fee2e2":"white",color:ev.asistio===false?"#dc2626":"#888",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        ☐ No asistió
+                      </button>
+                      {ev.asistio===null&&<span style={{fontSize:10,color:"#bbb",fontStyle:"italic"}}>Sin registrar</span>}
+                    </div>
+                  )}
+                  {ev.tipo==="aliado"&&!esPasado&&(
+                    <div style={{marginTop:6,fontSize:10,color:"#bbb",fontStyle:"italic"}}>La asistencia se registra el día de la actividad o después.</div>
+                  )}
+                </div>
+              );
             })}
           </div>
         )}
 
         <div style={{borderTop:"1px solid #eee",paddingTop:14,marginBottom:14}}>
-          <label className="lbl">Agregar aliado a este dia</label>
+          <label className="lbl">Agregar aliado a este día</label>
           <div style={{display:"flex",gap:8}}>
             <select className="inp" value={aliadoSel} onChange={e=>setAliadoSel(e.target.value)} style={{background:"white"}}>
-              {aliados.map(a=><option key={a.id} value={a.id}>{a.emoji} {a.nombre}</option>)}
+              {aliados.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
             </select>
             <button className="btn-primary" onClick={()=>{if(aliadoSel)onAddAliado(aliadoSel);}} style={{whiteSpace:"nowrap"}}>+ Agregar</button>
           </div>
@@ -285,7 +314,7 @@ function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel}){
         <div>
           <label className="lbl">Agregar nota / festivo</label>
           <div style={{display:"flex",gap:8}}>
-            <input className="inp" value={nota} onChange={e=>setNota(e.target.value)} placeholder="Ej: Dia de la Independencia"/>
+            <input className="inp" value={nota} onChange={e=>setNota(e.target.value)} placeholder="Ej: Día de la Independencia"/>
             <button style={{background:"#dc2626",color:"white",border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{if(nota.trim()){onAddNota(nota.trim());setNota("");}}}>+ Nota</button>
           </div>
         </div>
@@ -504,7 +533,7 @@ function App(){
     return fusionarAliadosNuevos(base);
   });
   const [dirFiltro,setDirFiltro]=useState("");
-  const [dirVista,setDirVista]=useState("confirmados"); // "confirmados" | "gestion" | "contactos" | "lista" | "visitas"
+  const [dirVista,setDirVista]=useState("confirmados");
   const [sedesConfig,setSedesConfig]=useState(()=>_lsData?.sedesConfig||SEDES_CONFIG_INIT);
   const [galeria,setGaleria]=useState(()=>_lsData?.galeria||[]);
   const [galeriaFiltroAliado,setGaleriaFiltroAliado]=useState("");
@@ -687,13 +716,14 @@ function App(){
   const eventosDelDia=(dia,mes,anio)=>calEventos.filter(ev=>ev.dia===dia&&ev.mes===mes&&ev.anio===anio&&(ev.sede||"bogota")===calSede);
   const addCalAliado=(aliadoId)=>{
     if(!diaModal) return;
-    setCalEventos(p=>[...p,{id:uid(),tipo:"aliado",aliadoId,dia:diaModal.dia,mes:diaModal.mes,anio:diaModal.anio,sede:calSede}]);
+    setCalEventos(p=>[...p,{id:uid(),tipo:"aliado",aliadoId,dia:diaModal.dia,mes:diaModal.mes,anio:diaModal.anio,sede:calSede,asistio:null}]);
   };
   const addCalNota=(texto)=>{
     if(!diaModal) return;
     setCalEventos(p=>[...p,{id:uid(),tipo:"nota",texto,dia:diaModal.dia,mes:diaModal.mes,anio:diaModal.anio,sede:calSede}]);
   };
   const delCalEvento=(id)=>setCalEventos(p=>p.filter(ev=>ev.id!==id));
+  const toggleAsistencia=(evId,valor)=>setCalEventos(p=>p.map(ev=>ev.id===evId?{...ev,asistio:valor}:ev));
   const mesAnterior=()=>{ if(calMes===0){setCalMes(11);setCalAnio(a=>a-1);} else setCalMes(m=>m-1); };
   const mesSiguiente=()=>{ if(calMes===11){setCalMes(0);setCalAnio(a=>a+1);} else setCalMes(m=>m+1); };
   const iniciarEdicionAliado=(a)=>{setEditAliadoId(a.id);setEditAliadoNombre(a.nombre);};
@@ -827,7 +857,7 @@ function App(){
       <span onClick={()=>setNotice(null)} style={{cursor:"pointer",opacity:.6,fontWeight:400,fontSize:16,lineHeight:1}}>×</span>
     </div>
   )}
-  {diaModal&&<ModalDia fecha={diaModal} eventos={eventosDelDia(diaModal.dia,diaModal.mes,diaModal.anio)} aliados={calAliados} onClose={cerrarDia} onAddAliado={addCalAliado} onAddNota={addCalNota} onDel={delCalEvento}/>}
+  {diaModal&&<ModalDia fecha={diaModal} eventos={eventosDelDia(diaModal.dia,diaModal.mes,diaModal.anio)} aliados={calAliados} onClose={cerrarDia} onAddAliado={addCalAliado} onAddNota={addCalNota} onDel={delCalEvento} onToggleAsistencia={toggleAsistencia}/>}
   {showModalVisita&&visitaEditando&&<ModalVisita inicial={visitaEditando} aliadoNombre={(directorio.find(d=>d.id===visitaEditando.aliadoId)||{}).empresa||""} onClose={()=>{setShowModalVisita(false);setVisitaEditando(null);}} onSave={guardarVisita}/>}
   {visitaViendo&&<ModalVerVisita v={visitaViendo} aliadoNombre={(directorio.find(d=>d.id===visitaViendo.aliadoId)||{}).empresa||""} onClose={()=>setVisitaViendo(null)} onEditar={()=>abrirEditarVisita(visitaViendo)} onEliminar={()=>eliminarVisita(visitaViendo.id)}/>}
 
@@ -1399,9 +1429,11 @@ function App(){
                         {eventosDia.map(ev=>{
                           const nombreEv=ev.tipo==="aliado"?(calAliados.find(a=>a.id===ev.aliadoId)||{}).nombre||"Aliado":ev.texto||"Nota";
                           const colorEv=ev.tipo==="aliado"?colorAliado(calAliados,ev.aliadoId):"#dc2626";
+                          const indicador=ev.tipo==="aliado"?ev.asistio===true?"✓":ev.asistio===false?"✗":"":""  ;
                           return(
-                            <div key={ev.id} title={nombreEv}
-                              style={{borderRadius:3,background:colorEv,padding:"2px 5px",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontSize:9,fontWeight:700,color:"rgba(0,0,0,.65)",lineHeight:1.4}}>
+                            <div key={ev.id} title={nombreEv+(indicador?" · "+(ev.asistio===true?"Asistió":"No asistió"):"")}
+                              style={{borderRadius:3,background:colorEv,padding:"2px 5px",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontSize:9,fontWeight:700,color:"rgba(0,0,0,.65)",lineHeight:1.4,display:"flex",alignItems:"center",gap:3}}>
+                              {indicador&&<span style={{fontSize:9,fontWeight:900,color:ev.asistio===true?"#166534":"#dc2626"}}>{indicador}</span>}
                               {nombreEv}
                             </div>
                           );
@@ -1415,7 +1447,59 @@ function App(){
           ))}
         </div>
       </div>
-      <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:12}}>Sede: {(SEDES.find(s=>s.id===calSede)||{}).nombre} · Haz clic en cualquier dia para agregar o quitar aliados y notas</p>
+      <p style={{fontSize:10,color:"#bbb",textAlign:"center",marginTop:12}}>Sede: {(SEDES.find(s=>s.id===calSede)||{}).nombre} · Haz clic en cualquier día para agregar aliados y registrar asistencia</p>
+
+      {/* ── ESTADÍSTICAS DE ASISTENCIA POR ALIADO ── */}
+      {(()=>{
+        const eventosAliados=calEventos.filter(ev=>ev.tipo==="aliado");
+        if(eventosAliados.length===0) return null;
+        const stats={};
+        eventosAliados.forEach(ev=>{
+          if(!stats[ev.aliadoId]) stats[ev.aliadoId]={programadas:0,asistio:0,noAsistio:0,sinRegistrar:0};
+          stats[ev.aliadoId].programadas++;
+          if(ev.asistio===true) stats[ev.aliadoId].asistio++;
+          else if(ev.asistio===false) stats[ev.aliadoId].noAsistio++;
+          else stats[ev.aliadoId].sinRegistrar++;
+        });
+        const aliadosConStats=calAliados.filter(a=>stats[a.id]).map(a=>({
+          ...a,...stats[a.id],
+          pct:stats[a.id].programadas>0?Math.round((stats[a.id].asistio/(stats[a.id].programadas-stats[a.id].sinRegistrar||1))*100):0,
+        })).sort((a,b)=>b.programadas-a.programadas);
+        return(
+          <div style={{marginTop:16,background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"16px 18px"}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:4}}>📊 Estadísticas de asistencia por aliado</div>
+            <div style={{fontSize:10,color:"#aaa",marginBottom:12}}>Basado en todas las actividades del calendario · ✓ Asistió · ✗ No asistió · ⬜ Sin registrar</div>
+            <div style={{display:"grid",gap:8}}>
+              {aliadosConStats.map(a=>{
+                const registradas=a.asistio+a.noAsistio;
+                const pctReal=registradas>0?Math.round((a.asistio/registradas)*100):null;
+                const colorPct=pctReal===null?"#bbb":pctReal>=80?VERDE:pctReal>=50?NARANJA:"#ef4444";
+                return(
+                  <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"#fafafa",borderRadius:8}}>
+                    <span style={{width:10,height:10,borderRadius:3,background:colorAliado(calAliados,a.id),flexShrink:0}}/>
+                    <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nombre}</span>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,fontSize:10}}>
+                      <span style={{color:"#888"}}>{a.programadas} act.</span>
+                      <span style={{color:VERDE,fontWeight:700}}>✓ {a.asistio}</span>
+                      <span style={{color:"#ef4444",fontWeight:700}}>✗ {a.noAsistio}</span>
+                      {a.sinRegistrar>0&&<span style={{color:"#bbb"}}>⬜ {a.sinRegistrar}</span>}
+                      {pctReal!==null&&(
+                        <>
+                          <div style={{background:"#f0f0f0",borderRadius:20,height:6,width:50,overflow:"hidden"}}>
+                            <div style={{background:colorPct,width:pctReal+"%",height:"100%",borderRadius:20}}/>
+                          </div>
+                          <span style={{fontSize:11,fontWeight:800,color:colorPct,minWidth:34,textAlign:"right"}}>{pctReal}%</span>
+                        </>
+                      )}
+                      {pctReal===null&&<span style={{fontSize:10,color:"#bbb",fontStyle:"italic"}}>Sin registrar</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   )}
 
@@ -1431,7 +1515,6 @@ function App(){
         <button onClick={()=>setDirVista("confirmados")} style={{padding:"7px 12px",borderRadius:6,border:"2px solid "+(dirVista==="confirmados"?VERDE:"#ddd"),background:dirVista==="confirmados"?VERDE:"white",color:dirVista==="confirmados"?"white":"#333",fontSize:11,fontWeight:600,cursor:"pointer"}}>✅ Confirmados</button>
         <div style={{flex:1}}/>
         <button onClick={()=>setDirVista("lista")} style={{padding:"7px 14px",borderRadius:20,border:"1.5px solid "+(dirVista==="lista"?"#f5b8d3":"#ddd"),background:dirVista==="lista"?"#f5b8d3":"white",color:dirVista==="lista"?"#7a2e4d":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>📇 Mi Lista</button>
-        <button onClick={()=>setDirVista("visitas")} style={{padding:"7px 14px",borderRadius:20,border:"1.5px solid "+(dirVista==="visitas"?PURP:"#ddd"),background:dirVista==="visitas"?PURP:"white",color:dirVista==="visitas"?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
       </div>
 
     {/* ══ VISTA: CONFIRMADOS ══ */}
@@ -1769,236 +1852,6 @@ function App(){
     </div>
     )}
 
-    {dirVista==="visitas"&&(()=>{
-      const hoyStr=new Date().toISOString().slice(0,10);
-
-      // ── Solo visitas del Programa de Aliados (excluye históricos) ──
-      const idsProg=new Set(directorio.filter(a=>a.grupo==="programa"||!a.grupo).map(a=>a.id));
-      const visitasProg=visitas.filter(v=>idsProg.has(v.aliadoId));
-
-      // ── Cálculos globales del mes ──
-      const visitasMes=visitasProg.filter(v=>{
-        const d=new Date(v.fecha+"T00:00:00");
-        return d.getMonth()===visMes&&d.getFullYear()===visAnio;
-      });
-      const finalizadas=visitasMes.filter(v=>v.estado==="Finalizada").length;
-      const programadas=visitasProg.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr).length;
-      const canceladas=visitasMes.filter(v=>v.estado==="Cancelada").length;
-
-      // Visitas por tipo (mes actual)
-      const porTipo={};
-      visitasMes.forEach(v=>{const t=v.tipoActividad||"Otro";porTipo[t]=(porTipo[t]||0)+1;});
-      const tipoEntries=Object.entries(porTipo).sort((a,b)=>b[1]-a[1]);
-      const maxTipo=tipoEntries.length>0?tipoEntries[0][1]:1;
-
-      // Visitas por contacto del programa (mes actual)
-      const porContacto={};
-      visitasMes.forEach(v=>{
-        const d=directorio.find(x=>x.id===v.aliadoId);
-        const nombre=d?d.empresa:"Sin asignar";
-        porContacto[nombre]=(porContacto[nombre]||0)+1;
-      });
-      const contactoEntries=Object.entries(porContacto).sort((a,b)=>b[1]-a[1]).slice(0,6);
-      const maxContacto=contactoEntries.length>0?contactoEntries[0][1]:1;
-
-      // Tendencia últimos 6 meses (solo programa)
-      const tendencia=[];
-      for(let i=5;i>=0;i--){
-        let m=visMes-i,a=visAnio;
-        while(m<0){m+=12;a--;}
-        const total=visitasProg.filter(v=>{
-          const d=new Date(v.fecha+"T00:00:00");
-          return d.getMonth()===m&&d.getFullYear()===a&&v.estado!=="Cancelada";
-        }).length;
-        tendencia.push({m,a,total});
-      }
-      const maxTend=Math.max(1,...tendencia.map(t=>t.total));
-
-      // Próximas visitas (solo programa)
-      const proximas=visitasProg.filter(v=>v.estado==="Programada"&&v.fecha>=hoyStr)
-        .sort((a,b)=>a.fecha.localeCompare(b.fecha)).slice(0,5);
-
-      // Contacto seleccionado (solo del programa)
-      const contactosProg=directorio.filter(a=>a.grupo==="programa"||!a.grupo);
-      const aliadoSel=contactosProg.find(d=>d.id===visSelAliadoId)||null;
-      const visSel=aliadoSel?visitasDe(aliadoSel.id):[];
-
-      const COLS_ESTADO={
-        "Finalizada":{bg:"#dcfce7",color:"#166534"},
-        "Programada":{bg:"#dbeafe",color:"#1e40af"},
-        "En curso":{bg:"#fef3c7",color:"#92400e"},
-        "Cancelada":{bg:"#fee2e2",color:"#991b1b"},
-      };
-
-      return(
-      <div>
-        {/* Encabezado con selector de mes */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
-          <div>
-            <h3 style={{fontSize:14,fontWeight:700,color:"#333",marginBottom:2}}>Actividad Operativa del Programa</h3>
-            <p style={{fontSize:11,color:"#888"}}>Registro y seguimiento de visitas y actividades con aliados</p>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <button onClick={()=>{if(visMes===0){setVisMes(11);setVisAnio(a=>a-1);}else setVisMes(m=>m-1);}} style={{background:"#f3f3f3",border:"none",width:28,height:28,borderRadius:6,cursor:"pointer",color:"#555",fontSize:14}}>‹</button>
-            <span style={{fontSize:12,fontWeight:700,minWidth:130,textAlign:"center"}}>{MESES[visMes]} {visAnio}</span>
-            <button onClick={()=>{if(visMes===11){setVisMes(0);setVisAnio(a=>a+1);}else setVisMes(m=>m+1);}} style={{background:"#f3f3f3",border:"none",width:28,height:28,borderRadius:6,cursor:"pointer",color:"#555",fontSize:14}}>›</button>
-          </div>
-        </div>
-
-        {/* KPIs operativos */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
-          {[
-            {label:"Visitas este mes",val:visitasMes.length,color:PURP,bg:"#faf7ff",icon:"📍"},
-            {label:"Finalizadas",val:finalizadas,color:VERDE,bg:"#f0f7eb",icon:"✅"},
-            {label:"Programadas",val:programadas,color:AZUL,bg:"#e8f1fb",icon:"📅"},
-            {label:"Canceladas",val:canceladas,color:"#dc2626",bg:"#fff1f2",icon:"❌"},
-          ].map((k,i)=>(
-            <div key={i} style={{background:k.bg,border:"1px solid #e5e7eb",borderRadius:10,padding:"14px 16px"}}>
-              <div style={{fontSize:22}}>{k.icon}</div>
-              <div style={{fontSize:24,fontWeight:900,color:k.color,lineHeight:1,marginTop:6}}>{k.val}</div>
-              <div style={{fontSize:10,color:"#888",marginTop:4,fontWeight:600}}>{k.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Gráficas: tipo de actividad + visitas por contacto */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>Actividades por tipo</div>
-            <div style={{fontSize:10,color:"#aaa",marginBottom:10,fontStyle:"italic"}}>¿Qué tipo de actividad predomina este mes?</div>
-            {tipoEntries.length===0?(
-              <p style={{fontSize:11,color:"#bbb",padding:"12px 0"}}>Sin actividades registradas este mes</p>
-            ):tipoEntries.map(([tipo,n])=>(
-              <div key={tipo} style={{marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#555",marginBottom:3,fontWeight:600}}>
-                  <span>{tipo}</span><span style={{color:PURP,fontWeight:800}}>{n}</span>
-                </div>
-                <div style={{height:7,background:"#ebebeb",borderRadius:6,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:Math.round((n/maxTipo)*100)+"%",background:PURP,borderRadius:6}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>Visitas por aliado</div>
-            <div style={{fontSize:10,color:"#aaa",marginBottom:10,fontStyle:"italic"}}>¿Con qué aliados hubo más actividad este mes?</div>
-            {contactoEntries.length===0?(
-              <p style={{fontSize:11,color:"#bbb",padding:"12px 0"}}>Sin visitas registradas este mes</p>
-            ):contactoEntries.map(([nombre,n])=>(
-              <div key={nombre} style={{marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#555",marginBottom:3,fontWeight:600}}>
-                  <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"75%"}}>{nombre}</span>
-                  <span style={{color:AZUL,fontWeight:800}}>{n}</span>
-                </div>
-                <div style={{height:7,background:"#ebebeb",borderRadius:6,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:Math.round((n/maxContacto)*100)+"%",background:AZUL,borderRadius:6}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tendencia + Próximas */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
-          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>Tendencia de actividad</div>
-            <div style={{fontSize:10,color:"#aaa",marginBottom:10,fontStyle:"italic"}}>¿El programa está creciendo en visitas?</div>
-            <div style={{display:"flex",alignItems:"flex-end",gap:6,height:80}}>
-              {tendencia.map((t,i)=>(
-                <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"flex-end",height:"100%"}}>
-                  <div style={{fontSize:10,fontWeight:800,color:PURP,marginBottom:2}}>{t.total||""}</div>
-                  <div style={{width:"70%",background:"linear-gradient(180deg,"+PURP+",#a78bfa)",borderRadius:"4px 4px 0 0",height:t.total>0?Math.round((t.total/maxTend)*64)+"px":"2px",minHeight:2,opacity:i===5?1:.65}}/>
-                  <div style={{fontSize:9,color:"#999",marginTop:3}}>{MESES[t.m].slice(0,3)}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{border:"1px solid #e5e5e5",borderRadius:10,padding:14}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:4}}>📅 Próximas visitas</div>
-            <div style={{fontSize:10,color:"#aaa",marginBottom:10,fontStyle:"italic"}}>Visitas programadas pendientes de realizar</div>
-            {proximas.length===0?(
-              <p style={{fontSize:11,color:"#bbb",padding:"8px 0"}}>No hay visitas programadas a futuro</p>
-            ):proximas.map(v=>{
-              const d=directorio.find(x=>x.id===v.aliadoId);
-              return(
-                <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid #f5f5f5",cursor:"pointer"}}>
-                  <div>
-                    <div style={{fontSize:11,fontWeight:700,color:"#333"}}>{d?d.empresa:"?"}</div>
-                    <div style={{fontSize:10,color:"#999"}}>{v.tipoActividad}{v.ciudad?" · "+v.ciudad:""}</div>
-                  </div>
-                  <span style={{fontSize:10,fontWeight:600,color:AZUL,flexShrink:0,marginLeft:8}}>{v.fecha}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Historial por contacto */}
-        <div style={{borderTop:"1px solid #eee",paddingTop:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div>
-              <h3 style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:2}}>Historial por contacto</h3>
-              <p style={{fontSize:10,color:"#aaa"}}>Selecciona un contacto para ver y registrar sus visitas</p>
-            </div>
-            {aliadoSel&&<button onClick={()=>abrirNuevaVisita(aliadoSel.id)} style={{background:PURP,color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Registrar visita</button>}
-          </div>
-
-          {/* Selector de contacto */}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-            {contactosProg.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión"||d.estado==="En Revisión"||d.estado==="En Formalización").map(d=>(
-              <button key={d.id} onClick={()=>setVisSelAliadoId(d.id)}
-                style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(aliadoSel&&aliadoSel.id===d.id?PURP:"#ddd"),background:aliadoSel&&aliadoSel.id===d.id?PURP:"white",color:aliadoSel&&aliadoSel.id===d.id?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                {d.empresa||"(sin nombre)"}
-                {visitasDe(d.id).length>0&&<span style={{marginLeft:5,background:"rgba(255,255,255,.25)",padding:"1px 6px",borderRadius:10,fontSize:9}}>{visitasDe(d.id).length}</span>}
-              </button>
-            ))}
-            {contactosProg.filter(d=>visitasDe(d.id).length>0||d.estado==="Confirmado"||d.estado==="En Gestión"||d.estado==="En Revisión"||d.estado==="En Formalización").length===0&&(
-              <p style={{fontSize:11,color:"#bbb"}}>Agrega contactos al Programa de Aliados para registrar visitas.</p>
-            )}
-          </div>
-
-          {/* Historial del contacto seleccionado */}
-          {aliadoSel&&(
-            <div>
-              <div style={{display:"flex",gap:8,marginBottom:10}}>
-                <div style={{background:"#faf7ff",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:PURP}}>{visSel.length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Total visitas</div>
-                </div>
-                <div style={{background:"#f0f7eb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:VERDE}}>{visSel.filter(v=>v.estado==="Finalizada").length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Finalizadas</div>
-                </div>
-                <div style={{background:"#e8f1fb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:AZUL}}>{visSel.filter(v=>v.estado==="Programada").length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Programadas</div>
-                </div>
-              </div>
-              <div style={{display:"grid",gap:6}}>
-                {visSel.map(v=>{
-                  const est=COLS_ESTADO[v.estado]||{bg:"#f0f0f0",color:"#555"};
-                  return(
-                    <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{v.tipoActividad} · {v.fecha}</div>
-                        <div style={{fontSize:11,color:"#888"}}>{v.ciudad}{v.site?" · "+v.site:""}{v.responsable?" · "+v.responsable:""}</div>
-                        {v.observaciones&&<div style={{fontSize:10,color:"#aaa",marginTop:2,fontStyle:"italic"}}>{v.observaciones.slice(0,60)}{v.observaciones.length>60?"...":""}</div>}
-                      </div>
-                      <span style={{background:est.bg,color:est.color,padding:"3px 10px",borderRadius:20,fontSize:10,fontWeight:700,flexShrink:0,marginLeft:8}}>{v.estado}</span>
-                    </div>
-                  );
-                })}
-                {visSel.length===0&&<p style={{fontSize:11,color:"#bbb",padding:"8px 0"}}>Este contacto aún no tiene visitas registradas. Usa el botón + Registrar visita.</p>}
-              </div>
-            </div>
-          )}
-          {directorio.length===0&&<p style={{fontSize:12,color:"#bbb"}}>Agrega contactos en el Directorio de Contactos para poder registrar visitas.</p>}
-        </div>
-      </div>
-      );
-    })()}
     </div>
   )}
 
