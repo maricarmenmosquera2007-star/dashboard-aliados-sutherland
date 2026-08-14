@@ -1451,7 +1451,7 @@ function App(){
 
       {/* ── ESTADÍSTICAS DE ASISTENCIA POR ALIADO ── */}
       {(()=>{
-        const eventosAliados=calEventos.filter(ev=>ev.tipo==="aliado");
+        const eventosAliados=calEventos.filter(ev=>ev.tipo==="aliado"&&(ev.sede||"bogota")===calSede);
         if(eventosAliados.length===0) return null;
         const stats={};
         eventosAliados.forEach(ev=>{
@@ -1466,33 +1466,33 @@ function App(){
           pct:stats[a.id].programadas>0?Math.round((stats[a.id].asistio/(stats[a.id].programadas-stats[a.id].sinRegistrar||1))*100):0,
         })).sort((a,b)=>b.programadas-a.programadas);
         return(
-          <div style={{marginTop:16,background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"16px 18px"}}>
-            <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:4}}>📊 Estadísticas de asistencia por aliado</div>
-            <div style={{fontSize:10,color:"#aaa",marginBottom:12}}>Basado en todas las actividades del calendario · ✓ Asistió · ✗ No asistió · ⬜ Sin registrar</div>
-            <div style={{display:"grid",gap:8}}>
+          <div style={{marginTop:16,background:"white",borderRadius:10,border:"1px solid #e5e7eb",padding:"14px 16px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#333"}}>📊 Asistencia por aliado — Sede: {(SEDES.find(s=>s.id===calSede)||{}).nombre}</div>
+              <span style={{fontSize:10,color:"#aaa"}}>% calculado sobre actividades registradas</span>
+            </div>
+            {/* Encabezado */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 60px 50px 50px 60px 50px",gap:6,padding:"5px 8px",background:"#f8f9fa",borderRadius:6,marginBottom:6}}>
+              {["Aliado","Act.","✓","✗","Sin reg.","Asist."].map(h=>(
+                <span key={h} style={{fontSize:10,fontWeight:700,color:"#666",textAlign:h==="Aliado"?"left":"center"}}>{h}</span>
+              ))}
+            </div>
+            <div style={{display:"grid",gap:3}}>
               {aliadosConStats.map(a=>{
                 const registradas=a.asistio+a.noAsistio;
                 const pctReal=registradas>0?Math.round((a.asistio/registradas)*100):null;
                 const colorPct=pctReal===null?"#bbb":pctReal>=80?VERDE:pctReal>=50?NARANJA:"#ef4444";
                 return(
-                  <div key={a.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"#fafafa",borderRadius:8}}>
-                    <span style={{width:10,height:10,borderRadius:3,background:colorAliado(calAliados,a.id),flexShrink:0}}/>
-                    <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nombre}</span>
-                    <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0,fontSize:10}}>
-                      <span style={{color:"#888"}}>{a.programadas} act.</span>
-                      <span style={{color:VERDE,fontWeight:700}}>✓ {a.asistio}</span>
-                      <span style={{color:"#ef4444",fontWeight:700}}>✗ {a.noAsistio}</span>
-                      {a.sinRegistrar>0&&<span style={{color:"#bbb"}}>⬜ {a.sinRegistrar}</span>}
-                      {pctReal!==null&&(
-                        <>
-                          <div style={{background:"#f0f0f0",borderRadius:20,height:6,width:50,overflow:"hidden"}}>
-                            <div style={{background:colorPct,width:pctReal+"%",height:"100%",borderRadius:20}}/>
-                          </div>
-                          <span style={{fontSize:11,fontWeight:800,color:colorPct,minWidth:34,textAlign:"right"}}>{pctReal}%</span>
-                        </>
-                      )}
-                      {pctReal===null&&<span style={{fontSize:10,color:"#bbb",fontStyle:"italic"}}>Sin registrar</span>}
+                  <div key={a.id} style={{display:"grid",gridTemplateColumns:"1fr 60px 50px 50px 60px 50px",gap:6,padding:"5px 8px",borderRadius:6,background:"#fafafa",alignItems:"center"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                      <span style={{width:8,height:8,borderRadius:2,background:colorAliado(calAliados,a.id),flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:600,color:"#333",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.nombre}</span>
                     </div>
+                    <span style={{fontSize:11,color:"#888",textAlign:"center"}}>{a.programadas}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:VERDE,textAlign:"center"}}>{a.asistio}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:"#ef4444",textAlign:"center"}}>{a.noAsistio}</span>
+                    <span style={{fontSize:11,color:"#bbb",textAlign:"center"}}>{a.sinRegistrar}</span>
+                    <span style={{fontSize:12,fontWeight:800,color:colorPct,textAlign:"center"}}>{pctReal!==null?pctReal+"%":"—"}</span>
                   </div>
                 );
               })}
@@ -2079,7 +2079,6 @@ function App(){
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={()=>setHistVista("directorio")} style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid "+(histVista==="directorio"?"#495057":"#ddd"),background:histVista==="directorio"?"#495057":"white",color:histVista==="directorio"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📋 Directorio</button>
-          <button onClick={()=>setHistVista("visitas")} style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid "+(histVista==="visitas"?PURP:"#ddd"),background:histVista==="visitas"?PURP:"white",color:histVista==="visitas"?"white":"#666",fontSize:12,fontWeight:600,cursor:"pointer"}}>📊 Visitas</button>
         </div>
       </div>
 
@@ -2144,85 +2143,6 @@ function App(){
       )}
 
       {/* ── VISTA VISITAS ── */}
-      {histVista==="visitas"&&(
-        <div>
-          <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:4}}>Registro de visitas de mantenimiento</div>
-          <p style={{fontSize:11,color:"#888",marginBottom:16}}>Visitas realizadas a los convenios históricos para mantenimiento de la relación.</p>
-
-          {/* Próximas visitas */}
-          {proximasHist.length>0&&(
-            <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:8}}>📅 Próximas visitas programadas</div>
-              <div style={{display:"grid",gap:6}}>
-                {proximasHist.map(v=>{
-                  const d=listaHist.find(x=>x.id===v.aliadoId);
-                  return(
-                    <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{d?d.empresa:"?"} · {v.tipoActividad}</div>
-                        <div style={{fontSize:10,color:"#999"}}>{v.ciudad}{v.responsable?" · "+v.responsable:""}</div>
-                      </div>
-                      <span style={{fontSize:11,fontWeight:600,color:AZUL}}>{v.fecha}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Selector de convenio histórico */}
-          <div style={{fontSize:12,fontWeight:700,color:"#333",marginBottom:8}}>Historial por convenio</div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
-            {listaHist.map(d=>(
-              <button key={d.id} onClick={()=>setHistAliadoSel(d.id)}
-                style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(histAliadoSel===d.id?"#495057":"#ddd"),background:histAliadoSel===d.id?"#495057":"white",color:histAliadoSel===d.id?"white":"#666",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                {d.empresa}
-                {visitasDe(d.id).length>0&&<span style={{marginLeft:5,background:"rgba(255,255,255,.25)",padding:"1px 6px",borderRadius:10,fontSize:9}}>{visitasDe(d.id).length}</span>}
-              </button>
-            ))}
-          </div>
-
-          {aliadoHistSel&&(
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <span style={{fontSize:13,fontWeight:700,color:"#333"}}>{aliadoHistSel.empresa}</span>
-                <button onClick={()=>abrirNuevaVisita(aliadoHistSel.id)} style={{background:"#495057",color:"white",border:"none",padding:"8px 14px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Registrar visita</button>
-              </div>
-              <div style={{display:"flex",gap:8,marginBottom:12}}>
-                <div style={{background:"#f8f9fa",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:"#495057"}}>{visitasDelHist.length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Total visitas</div>
-                </div>
-                <div style={{background:"#f0f7eb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:VERDE}}>{visitasDelHist.filter(v=>v.estado==="Finalizada").length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Finalizadas</div>
-                </div>
-                <div style={{background:"#e8f1fb",borderRadius:8,padding:"8px 14px",textAlign:"center",minWidth:80}}>
-                  <div style={{fontSize:18,fontWeight:900,color:AZUL}}>{visitasDelHist.filter(v=>v.estado==="Programada").length}</div>
-                  <div style={{fontSize:9,color:"#999"}}>Programadas</div>
-                </div>
-              </div>
-              <div style={{display:"grid",gap:6}}>
-                {visitasDelHist.map(v=>{
-                  const est=COLS_EST[v.estado]||{bg:"#f0f0f0",color:"#555"};
-                  return(
-                    <div key={v.id} onClick={()=>setVisitaViendo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"white",border:"1px solid #eee",borderRadius:8,cursor:"pointer"}}>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:700,color:"#333"}}>{v.tipoActividad} · {v.fecha}</div>
-                        <div style={{fontSize:11,color:"#888"}}>{v.ciudad}{v.site?" · "+v.site:""}{v.responsable?" · "+v.responsable:""}</div>
-                        {v.observaciones&&<div style={{fontSize:10,color:"#aaa",marginTop:2,fontStyle:"italic"}}>{v.observaciones.slice(0,60)}{v.observaciones.length>60?"...":""}</div>}
-                      </div>
-                      <span style={{background:est.bg,color:est.color,padding:"3px 10px",borderRadius:20,fontSize:10,fontWeight:700,flexShrink:0,marginLeft:8}}>{v.estado}</span>
-                    </div>
-                  );
-                })}
-                {visitasDelHist.length===0&&<p style={{fontSize:11,color:"#bbb",padding:"8px 0"}}>Este convenio aún no tiene visitas registradas.</p>}
-              </div>
-            </div>
-          )}
-          {!aliadoHistSel&&<p style={{fontSize:11,color:"#bbb"}}>Selecciona un convenio histórico para ver su historial de visitas.</p>}
-        </div>
-      )}
     </div>
     );
   })()}
