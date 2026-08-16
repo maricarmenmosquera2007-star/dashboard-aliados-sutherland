@@ -244,14 +244,210 @@ function getCalendarWeeks(anio,mes){
 
 function uid(){return Math.random().toString(36).slice(2,9);}
 
+/* ══ MODAL CHARLA ══ */
+function ModalCharla({form,setForm,onClose,onSave,onDelete,aliados,directorio,editando}){
+  const AZUL="#185FA5",VERDE="#3B6D11",PURP="#7c3aed";
+  const s=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const puedeGuardar=form.tema&&form.tema.trim();
+  const pct=form.participantes>0?form.participantes:null;
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1100,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+      <div style={{background:"white",borderRadius:12,padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:20}}>🎤</span>
+            <h3 style={{fontSize:15,fontWeight:700,color:PURP}}>{editando?"Editar charla virtual":"Nueva charla virtual"}</h3>
+          </div>
+          <button onClick={onClose} style={{border:"none",background:"#f5f5f5",borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:14,color:"#666"}}>✕</button>
+        </div>
+        <div style={{fontSize:10,color:"#aaa",marginBottom:16}}>
+          {form.dia&&`${form.dia}/${form.mes+1}/${form.anio} · `}Sede: {form.sede==="bogota"?"Bogotá":form.sede==="barranquilla"?"Barranquilla":"Torre Cristal"}
+        </div>
+
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Tema de la charla *</label>
+          <input value={form.tema||""} onChange={e=>s("tema",e.target.value)}
+            style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:13}} placeholder="Ej: Beneficios del programa de aliados"/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Hora</label>
+            <input type="time" value={form.hora||""} onChange={e=>s("hora",e.target.value)}
+              style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Estado</label>
+            <select value={form.estado||"Programada"} onChange={e=>s("estado",e.target.value)}
+              style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,background:"white"}}>
+              <option value="Programada">Programada</option>
+              <option value="Realizada">Realizada</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,fontWeight:700,color:"#555",display:"block",marginBottom:4}}>Aliado relacionado</label>
+          <select value={form.aliadoId||""} onChange={e=>s("aliadoId",e.target.value)}
+            style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,background:"white"}}>
+            <option value="">Sin aliado específico</option>
+            {directorio.filter(a=>a.grupo==="programa"||!a.grupo).sort((a,b)=>(a.empresa||"").localeCompare(b.empresa||"")).map(a=>(
+              <option key={a.id} value={a.id}>{a.empresa}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Resultados — solo si está Realizada */}
+        {form.estado==="Realizada"&&(
+          <div style={{marginBottom:14,background:"#faf7ff",borderRadius:10,padding:"12px 14px",border:"1px solid #e9d5ff"}}>
+            <div style={{fontSize:11,fontWeight:700,color:PURP,marginBottom:10}}>📊 Resultados de la charla</div>
+            <div>
+              <label style={{fontSize:11,fontWeight:600,color:"#555",display:"block",marginBottom:4}}>Participantes que asistieron</label>
+              <input type="number" min="0" value={form.participantes||""} onChange={e=>s("participantes",Number(e.target.value))}
+                style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:13}} placeholder="0"/>
+            </div>
+            {pct!==null&&(
+              <div style={{marginTop:10,padding:"8px 12px",background:"white",borderRadius:8,border:"1px solid #e9d5ff",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:22,fontWeight:900,color:PURP}}>{form.participantes}</span>
+                <div>
+                  <div style={{fontSize:11,fontWeight:700,color:"#333"}}>personas asistieron</div>
+                  <div style={{fontSize:10,color:"#888"}}>Dato guardado para estadísticas</div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+          <div>
+            {editando&&<button onClick={()=>onDelete(form.id)} style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:6,padding:"7px 12px",fontSize:11,cursor:"pointer",fontWeight:600}}>🗑️ Eliminar</button>}
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={onClose} style={{padding:"8px 14px",borderRadius:6,border:"1px solid #ddd",background:"white",fontSize:12,cursor:"pointer",color:"#666"}}>Cancelar</button>
+            <button onClick={onSave} disabled={!puedeGuardar}
+              style={{padding:"8px 18px",borderRadius:6,border:"none",background:PURP,color:"white",fontSize:12,fontWeight:700,cursor:"pointer",opacity:puedeGuardar?1:.5}}>
+              {editando?"Guardar cambios":"Crear charla"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══ MODAL DIA (CALENDARIO) ══ */
-function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel,onToggleAsistencia}){
+function ModalDia({fecha,eventos,aliados,onClose,onAddAliado,onAddNota,onDel,onToggleAsistencia,onNuevaCharla}){
   const [aliadoSel,setAliadoSel]=useState(aliados[0]?aliados[0].id:"");
   const [nota,setNota]=useState("");
   const titulo=`${fecha.dia} de ${MESES[fecha.mes]} de ${fecha.anio}`;
   const hoyStr=new Date().toISOString().slice(0,10);
   const fechaEvStr=`${fecha.anio}-${String(fecha.mes+1).padStart(2,"0")}-${String(fecha.dia).padStart(2,"0")}`;
   const esPasado=fechaEvStr<=hoyStr;
+
+  // Separar charlas de eventos normales
+  const charlas=eventos.filter(ev=>ev.tipo==="charla");
+  const eventosNormales=eventos.filter(ev=>ev.tipo!=="charla");
+
+  return(
+    <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal-box" style={{maxWidth:520}}>
+        <h3 style={{fontSize:16,fontWeight:700,color:AZUL,marginBottom:16}}>📅 {titulo}</h3>
+
+        {/* Charlas del día */}
+        {charlas.length>0&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,fontWeight:700,color:"#7c3aed",textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>🎤 Charlas virtuales</div>
+            <div style={{display:"grid",gap:6}}>
+              {charlas.map(ev=>(
+                <div key={ev.id} style={{background:"#faf7ff",border:"1.5px solid #e9d5ff",borderRadius:8,padding:"8px 12px",cursor:"pointer"}}
+                  onClick={()=>{onClose();/* se abre desde el calendario */}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:12,fontWeight:700,color:"#7c3aed"}}>🎤 {ev.tema||"Sin tema"}</span>
+                    <span style={{fontSize:10,fontWeight:700,background:ev.estado==="Realizada"?"#dcfce7":"#fef3c7",color:ev.estado==="Realizada"?"#166534":"#92400e",padding:"2px 8px",borderRadius:20}}>{ev.estado}</span>
+                  </div>
+                  {ev.hora&&<div style={{fontSize:10,color:"#888",marginTop:2}}>⏰ {ev.hora}</div>}
+                  {ev.estado==="Realizada"&&ev.participantes>0&&<div style={{fontSize:10,color:"#7c3aed",marginTop:2,fontWeight:600}}>👥 {ev.participantes} participantes</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Eventos normales */}
+        {eventosNormales.length>0&&(
+          <div style={{display:"grid",gap:6,marginBottom:16}}>
+            {eventosNormales.map(ev=>{
+              const al=ev.tipo==="aliado"?aliados.find(a=>a.id===ev.aliadoId):null;
+              return(
+                <div key={ev.id} style={{padding:"8px 10px",background:"#f8f8f8",borderRadius:8,border:"1px solid #eee"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    {ev.tipo==="aliado"?(
+                      <><span style={{width:12,height:12,borderRadius:3,background:colorAliado(aliados,ev.aliadoId),flexShrink:0}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>{al?al.nombre:"(aliado eliminado)"}</span></>
+                    ):(
+                      <><span style={{width:12,height:12,borderRadius:3,background:"#dc2626",flexShrink:0}}/>
+                      <span style={{fontSize:12,fontWeight:600,color:"#333",flex:1}}>🔴 {ev.texto}</span></>
+                    )}
+                    <button className="btn-danger" onClick={()=>onDel(ev.id)}>Quitar</button>
+                  </div>
+                  {ev.tipo==="aliado"&&esPasado&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8,paddingTop:8,borderTop:"1px solid #eee"}}>
+                      <span style={{fontSize:10,color:"#888",fontWeight:600,marginRight:4}}>Asistencia:</span>
+                      <button onClick={()=>onToggleAsistencia(ev.id,ev.asistio===true?null:true)}
+                        style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:6,border:"1.5px solid "+(ev.asistio===true?"#22c55e":"#ddd"),background:ev.asistio===true?"#dcfce7":"white",color:ev.asistio===true?"#166534":"#888",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        ☑️ Asistió
+                      </button>
+                      <button onClick={()=>onToggleAsistencia(ev.id,ev.asistio===false?null:false)}
+                        style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:6,border:"1.5px solid "+(ev.asistio===false?"#ef4444":"#ddd"),background:ev.asistio===false?"#fee2e2":"white",color:ev.asistio===false?"#dc2626":"#888",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        ☐ No asistió
+                      </button>
+                      {ev.asistio===null&&<span style={{fontSize:10,color:"#bbb",fontStyle:"italic"}}>Sin registrar</span>}
+                    </div>
+                  )}
+                  {ev.tipo==="aliado"&&!esPasado&&(
+                    <div style={{marginTop:6,fontSize:10,color:"#bbb",fontStyle:"italic"}}>La asistencia se registra el día de la actividad o después.</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Agregar aliado */}
+        <div style={{borderTop:"1px solid #eee",paddingTop:14,marginBottom:10}}>
+          <label className="lbl">Agregar aliado a este día</label>
+          <div style={{display:"flex",gap:8}}>
+            <select className="inp" value={aliadoSel} onChange={e=>setAliadoSel(e.target.value)} style={{background:"white"}}>
+              {aliados.map(a=><option key={a.id} value={a.id}>{a.nombre}</option>)}
+            </select>
+            <button className="btn-primary" onClick={()=>{if(aliadoSel)onAddAliado(aliadoSel);}} style={{whiteSpace:"nowrap"}}>+ Agregar</button>
+          </div>
+        </div>
+
+        {/* Programar charla virtual */}
+        <div style={{marginBottom:10}}>
+          <button onClick={()=>{onClose();onNuevaCharla(fecha.dia);}}
+            style={{width:"100%",padding:"9px",borderRadius:8,border:"1.5px dashed #a78bfa",background:"#faf7ff",color:"#7c3aed",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+            🎤 Programar charla virtual
+          </button>
+        </div>
+
+        {/* Agregar nota */}
+        <div>
+          <label className="lbl">Agregar nota / festivo</label>
+          <div style={{display:"flex",gap:8}}>
+            <input className="inp" value={nota} onChange={e=>setNota(e.target.value)} placeholder="Ej: Día de la Independencia"/>
+            <button style={{background:"#dc2626",color:"white",border:"none",padding:"9px 16px",borderRadius:7,fontSize:13,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{if(nota.trim()){onAddNota(nota.trim());setNota("");}}}>+ Nota</button>
+          </div>
+        </div>
+
+        <div style={{display:"flex",justifyContent:"flex-end",marginTop:20}}>
+          <button className="btn-ghost" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
   return(
     <div className="modal-overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
@@ -570,8 +766,12 @@ function App(){
   const [visitaEditando,setVisitaEditando]=useState(null); // registro completo o null (nueva)
   const [visitaViendo,setVisitaViendo]=useState(null); // registro para ModalVerVisita
   const [calSede,setCalSede]=useState("bogota");
-  const [calMes,setCalMes]=useState(6); // 0-indexado: 6 = Julio
+  const [calMes,setCalMes]=useState(6);
   const [calAnio,setCalAnio]=useState(2026);
+  const [modalCharla,setModalCharla]=useState(false);
+  const [charlaEditando,setCharlaEditando]=useState(null);
+  const [charlaForm,setCharlaForm]=useState({});
+  const [diaCharla,setDiaCharla]=useState(null);
   const [diaModal,setDiaModal]=useState(null); // {dia,mes,anio} | null
   const [editAliadoId,setEditAliadoId]=useState(null);
   const [editAliadoNombre,setEditAliadoNombre]=useState("");
@@ -724,6 +924,35 @@ function App(){
   };
   const delCalEvento=(id)=>setCalEventos(p=>p.filter(ev=>ev.id!==id));
   const toggleAsistencia=(evId,valor)=>setCalEventos(p=>p.map(ev=>ev.id===evId?{...ev,asistio:valor}:ev));
+
+  // ── CHARLAS ──
+  const charlaVacia=(dia,mes,anio)=>({
+    id:"charla_"+Date.now(),tipo:"charla",
+    sede:calSede,dia,mes,anio,
+    aliadoId:"",hora:"",tema:"",
+    estado:"Programada",participantes:0,
+  });
+  const abrirNuevaCharla=(dia)=>{
+    setCharlaEditando(null);
+    setCharlaForm(charlaVacia(dia,calMes,calAnio));
+    setDiaCharla({dia,mes:calMes,anio:calAnio});
+    setModalCharla(true);
+  };
+  const abrirEditarCharla=(ev)=>{
+    setCharlaEditando(ev);
+    setCharlaForm({...ev});
+    setModalCharla(true);
+  };
+  const guardarCharla=()=>{
+    if(!charlaForm.tema||!charlaForm.tema.trim()) return;
+    if(charlaEditando){
+      setCalEventos(p=>p.map(ev=>ev.id===charlaForm.id?{...charlaForm}:ev));
+    } else {
+      setCalEventos(p=>[...p,{...charlaForm,id:"charla_"+Date.now()}]);
+    }
+    setModalCharla(false);setCharlaEditando(null);setCharlaForm({});
+  };
+  const eliminarCharla=(id)=>{setCalEventos(p=>p.filter(ev=>ev.id!==id));setModalCharla(false);};
   const mesAnterior=()=>{ if(calMes===0){setCalMes(11);setCalAnio(a=>a-1);} else setCalMes(m=>m-1); };
   const mesSiguiente=()=>{ if(calMes===11){setCalMes(0);setCalAnio(a=>a+1);} else setCalMes(m=>m+1); };
   const iniciarEdicionAliado=(a)=>{setEditAliadoId(a.id);setEditAliadoNombre(a.nombre);};
@@ -857,7 +1086,8 @@ function App(){
       <span onClick={()=>setNotice(null)} style={{cursor:"pointer",opacity:.6,fontWeight:400,fontSize:16,lineHeight:1}}>×</span>
     </div>
   )}
-  {diaModal&&<ModalDia fecha={diaModal} eventos={eventosDelDia(diaModal.dia,diaModal.mes,diaModal.anio)} aliados={calAliados} onClose={cerrarDia} onAddAliado={addCalAliado} onAddNota={addCalNota} onDel={delCalEvento} onToggleAsistencia={toggleAsistencia}/>}
+  {diaModal&&<ModalDia fecha={diaModal} eventos={eventosDelDia(diaModal.dia,diaModal.mes,diaModal.anio)} aliados={calAliados} onClose={cerrarDia} onAddAliado={addCalAliado} onAddNota={addCalNota} onDel={delCalEvento} onToggleAsistencia={toggleAsistencia} onNuevaCharla={abrirNuevaCharla}/>}
+  {modalCharla&&<ModalCharla form={charlaForm} setForm={setCharlaForm} onClose={()=>{setModalCharla(false);setCharlaEditando(null);setCharlaForm({});}} onSave={guardarCharla} onDelete={eliminarCharla} aliados={calAliados} directorio={directorio} editando={charlaEditando}/>}
   {showModalVisita&&visitaEditando&&<ModalVisita inicial={visitaEditando} aliadoNombre={(directorio.find(d=>d.id===visitaEditando.aliadoId)||{}).empresa||""} onClose={()=>{setShowModalVisita(false);setVisitaEditando(null);}} onSave={guardarVisita}/>}
   {visitaViendo&&<ModalVerVisita v={visitaViendo} aliadoNombre={(directorio.find(d=>d.id===visitaViendo.aliadoId)||{}).empresa||""} onClose={()=>setVisitaViendo(null)} onEditar={()=>abrirEditarVisita(visitaViendo)} onEliminar={()=>eliminarVisita(visitaViendo.id)}/>}
 
@@ -1426,9 +1656,20 @@ function App(){
                       {festivo&&<div style={{background:"#dc2626",color:"white",fontSize:9,fontWeight:700,borderRadius:4,padding:"2px 4px",marginBottom:3,lineHeight:1.2}}>{festivo}</div>}
                       <div style={{display:"grid",gap:3}}>
                         {eventosDia.map(ev=>{
+                          if(ev.tipo==="charla"){
+                            return(
+                              <div key={ev.id}
+                                onClick={e=>{e.stopPropagation();abrirEditarCharla(ev);}}
+                                title={"🎤 "+ev.tema+(ev.hora?" · "+ev.hora:"")+(ev.estado==="Realizada"?" · Realizada":"")}
+                                style={{borderRadius:3,background:"linear-gradient(90deg,#7c3aed,#a78bfa)",padding:"2px 5px",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontSize:9,fontWeight:700,color:"white",lineHeight:1.4,display:"flex",alignItems:"center",gap:3,cursor:"pointer"}}>
+                                🎤 <span style={{overflow:"hidden",textOverflow:"ellipsis"}}>{ev.tema||"Charla"}</span>
+                                {ev.estado==="Realizada"&&<span style={{flexShrink:0,opacity:.8}}>✓</span>}
+                              </div>
+                            );
+                          }
                           const nombreEv=ev.tipo==="aliado"?(calAliados.find(a=>a.id===ev.aliadoId)||{}).nombre||"Aliado":ev.texto||"Nota";
                           const colorEv=ev.tipo==="aliado"?colorAliado(calAliados,ev.aliadoId):"#dc2626";
-                          const indicador=ev.tipo==="aliado"?ev.asistio===true?"✓":ev.asistio===false?"✗":"":""  ;
+                          const indicador=ev.tipo==="aliado"?ev.asistio===true?"✓":ev.asistio===false?"✗":"":"";
                           return(
                             <div key={ev.id} title={nombreEv+(indicador?" · "+(ev.asistio===true?"Asistió":"No asistió"):"")}
                               style={{borderRadius:3,background:colorEv,padding:"2px 5px",overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",fontSize:9,fontWeight:700,color:"rgba(0,0,0,.65)",lineHeight:1.4,display:"flex",alignItems:"center",gap:3}}>
@@ -1496,6 +1737,76 @@ function App(){
                 );
               })}
             </div>
+          </div>
+        );
+      })()}
+
+      {/* ── ESTADÍSTICAS DE CHARLAS ── */}
+      {(()=>{
+        const charlasSedeAll=calEventos.filter(ev=>ev.tipo==="charla"&&(ev.sede||"bogota")===calSede);
+        if(charlasSedeAll.length===0) return null;
+        const realizadas=charlasSedeAll.filter(ev=>ev.estado==="Realizada");
+        const totalParticipantes=realizadas.reduce((s,ev)=>s+(Number(ev.participantes)||0),0);
+        const promParticipantes=realizadas.length>0?Math.round(totalParticipantes/realizadas.length):0;
+        // Charlas por aliado
+        const porAliado={};
+        charlasSedeAll.forEach(ev=>{const k=ev.aliadoId||"general";porAliado[k]=(porAliado[k]||0)+1;});
+        const topAliado=Object.entries(porAliado).sort((a,b)=>b[1]-a[1])[0];
+        const topAliadoNombre=topAliado?(directorio.find(d=>d.id===topAliado[0])||{empresa:"General"}).empresa:"—";
+        // Mejor horario
+        const horarios={};
+        charlasSedeAll.filter(ev=>ev.hora).forEach(ev=>{const h=ev.hora.slice(0,2)+":00";horarios[h]=(horarios[h]||0)+1;});
+        const mejorHorario=Object.entries(horarios).sort((a,b)=>b[1]-a[1])[0];
+
+        return(
+          <div style={{marginTop:12,background:"white",borderRadius:10,border:"1px solid #e9d5ff",padding:"14px 16px"}}>
+            <div style={{fontSize:12,fontWeight:700,color:"#7c3aed",marginBottom:12}}>🎤 Estadísticas de charlas virtuales — Sede: {(SEDES.find(s=>s.id===calSede)||{}).nombre}</div>
+            {/* KPIs rápidos */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
+              {[
+                {label:"Total charlas",val:charlasSedeAll.length,color:"#7c3aed"},
+                {label:"Realizadas",val:realizadas.length,color:VERDE},
+                {label:"Participantes totales",val:totalParticipantes,color:AZUL},
+                {label:"Promedio por charla",val:realizadas.length>0?promParticipantes+"p":"—",color:NARANJA},
+              ].map(k=>(
+                <div key={k.label} style={{textAlign:"center",background:"#faf7ff",borderRadius:8,padding:"8px 4px"}}>
+                  <div style={{fontSize:18,fontWeight:900,color:k.color}}>{k.val}</div>
+                  <div style={{fontSize:9,color:"#888",marginTop:2}}>{k.label}</div>
+                </div>
+              ))}
+            </div>
+            {/* Detalle de charlas */}
+            <div style={{display:"grid",gap:6}}>
+              {charlasSedeAll.sort((a,b)=>{
+                const fa=`${a.anio}-${String(a.mes+1).padStart(2,"0")}-${String(a.dia).padStart(2,"0")}`;
+                const fb=`${b.anio}-${String(b.mes+1).padStart(2,"0")}-${String(b.dia).padStart(2,"0")}`;
+                return fb.localeCompare(fa);
+              }).map(ev=>{
+                const al=ev.aliadoId?directorio.find(d=>d.id===ev.aliadoId):null;
+                return(
+                  <div key={ev.id} onClick={()=>abrirEditarCharla(ev)}
+                    style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",background:"#faf7ff",borderRadius:8,border:"1px solid #e9d5ff",cursor:"pointer"}}>
+                    <span style={{fontSize:16}}>🎤</span>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#333",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.tema||"Sin tema"}</div>
+                      <div style={{fontSize:10,color:"#888"}}>
+                        {ev.dia}/{ev.mes+1}/{ev.anio}{ev.hora?" · "+ev.hora:""}
+                        {al?" · "+al.empresa:""}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}>
+                      {ev.estado==="Realizada"&&ev.participantes>0&&(
+                        <span style={{fontSize:11,fontWeight:700,color:"#7c3aed"}}>👥 {ev.participantes}</span>
+                      )}
+                      <span style={{fontSize:10,fontWeight:700,background:ev.estado==="Realizada"?"#dcfce7":"#fef3c7",color:ev.estado==="Realizada"?"#166534":"#92400e",padding:"2px 8px",borderRadius:20}}>
+                        {ev.estado}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {mejorHorario&&<div style={{marginTop:8,fontSize:10,color:"#888"}}>💡 Horario más frecuente: <b>{mejorHorario[0]}</b> ({mejorHorario[1]} charla{mejorHorario[1]!==1?"s":""}) · Aliado con más charlas: <b>{topAliadoNombre}</b></div>}
           </div>
         );
       })()}
