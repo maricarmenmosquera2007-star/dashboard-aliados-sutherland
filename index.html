@@ -870,12 +870,11 @@ function App(){
   </div>
 
   {/* KPIs */}
-  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:18}}>
+  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
     {[
       {label:"Total de contactos en el directorio",val:directorio.length,icon:"📇",color:AZUL},
       {label:"Aliados en Calendario",val:calAliados.length,icon:"📅",color:PURP},
       {label:"Eventos Programados",val:calEventos.length,icon:"🗓️",color:NARANJA},
-      {label:"Visitas Registradas",val:visitas.length,icon:"✅",color:VERDE},
     ].map(k=>(
       <div key={k.label} style={{background:"white",borderRadius:10,border:"1px solid #e5e5e5",padding:"11px 14px",display:"flex",gap:10,alignItems:"center"}}>
         <span style={{fontSize:20}}>{k.icon}</span>
@@ -1234,7 +1233,7 @@ function App(){
         <SecHeader color={AZUL} letra="A" titulo="Crecimiento del Portafolio" pregunta="¿Cuántos aliados tenemos y cómo estamos creciendo?"/>
 
         <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:16}}>
-          <KpiCard valor={directorio.length} label="Total contactos en el directorio" sub="Confirmados + En proceso + Contactos iniciales" color="#111" desc="Universo total gestionado por el área de Alianzas."/>
+          <KpiCard valor={directorio.length} label="Total contactos en el directorio" sub="Confirmados + En proceso + Contactos iniciales" color="#111" desc="Total de registros en el directorio: convenios activos, procesos en curso y base de datos de contactos potenciales."/>
           <KpiCard valor={progConfirmados.length} label="Aliados activos del programa" sub={programa.length>0?tasaConvProg+"% de conversión del programa":"Sin datos"} color={VERDE} bg="#f0f7eb" desc="Aliados del programa con convenio confirmado y activo."/>
           <KpiCard valor={nuevosEsteMes.length>0?"+"+nuevosEsteMes.length:"—"} label="Nuevos este mes" sub={!hayFechas?"Registra fechas de inicio para activar":hoyD.toLocaleDateString("es-CO",{month:"long",year:"numeric"})} color={nuevosEsteMes.length>0?VERDE:"#bbb"} bg={nuevosEsteMes.length>0?"#f0f7eb":"white"}
             badge={pctCrecimiento!==null?{text:(pctCrecimiento>=0?"↑ +":"↓ ")+pctCrecimiento+"%",bg:pctCrecimiento>=0?"#dcfce7":"#fee2e2",color:pctCrecimiento>=0?"#166534":"#991b1b"}:null}
@@ -1525,7 +1524,7 @@ function App(){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,color:VERDE,marginBottom:2}}>✅ Convenios Confirmados</h3>
-            <p style={{fontSize:11,color:"#888"}}>Aliados con beneficios activos · {lista.length} convenios</p>
+            <p style={{fontSize:11,color:"#888"}}>Convenio formalizado y disponible para los colaboradores · {lista.length} activos</p>
           </div>
           <button onClick={()=>abrirModalNuevo("Confirmado")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:VERDE,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
         </div>
@@ -1593,7 +1592,7 @@ function App(){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,color:NARANJA,marginBottom:2}}>⏳ Convenios en Gestión</h3>
-            <p style={{fontSize:11,color:"#888"}}>Alianzas en proceso de negociación · {lista.length} en trámite</p>
+            <p style={{fontSize:11,color:"#888"}}>Propuesta concreta presentada · reuniones y conversaciones activas para estructurar el convenio · {lista.length} en trámite</p>
           </div>
           <button onClick={()=>abrirModalNuevo("En Gestión")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:NARANJA,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
         </div>
@@ -1655,7 +1654,7 @@ function App(){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,color:"#d97706",marginBottom:2}}>🔍 En Revisión de Documentos</h3>
-            <p style={{fontSize:11,color:"#888"}}>Aliados con documentación en proceso de revisión · {lista.length} en esta etapa</p>
+            <p style={{fontSize:11,color:"#888"}}>Propuesta y documentación en revisión interna · validando que todo esté correcto antes de formalizar · {lista.length} en esta etapa</p>
           </div>
           <button onClick={()=>abrirModalNuevo("En Revisión")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:"#d97706",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
         </div>
@@ -1704,7 +1703,7 @@ function App(){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,color:"#b45309",marginBottom:2}}>📋 En Formalización</h3>
-            <p style={{fontSize:11,color:"#888"}}>Aliados con proceso de formalización activo · {lista.length} en esta etapa</p>
+            <p style={{fontSize:11,color:"#888"}}>Alianza prácticamente aprobada · coordinando fechas de lanzamiento, comunicación y últimos detalles · {lista.length} en esta etapa</p>
           </div>
           <button onClick={()=>abrirModalNuevo("En Formalización")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:"#b45309",color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar aliado</button>
         </div>
@@ -1754,7 +1753,7 @@ function App(){
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
             <h3 style={{fontSize:14,fontWeight:700,color:AZUL,marginBottom:2}}>📞 Directorio de Contactos</h3>
-            <p style={{fontSize:11,color:"#888"}}>Base de datos con teléfonos y contactos directos · {lista.length} empresas</p>
+            <p style={{fontSize:11,color:"#888"}}>Base de datos inicial con teléfonos, correos y contactos directos de empresas potenciales · {lista.length} registros</p>
           </div>
           <button onClick={()=>abrirModalNuevo("Contacto")} style={{padding:"8px 14px",borderRadius:6,border:"none",background:AZUL,color:"white",fontSize:12,fontWeight:700,cursor:"pointer"}}>+ Agregar contacto</button>
         </div>
