@@ -291,9 +291,16 @@ function ModalCharla({form,setForm,onClose,onSave,onDelete,aliados,directorio,ed
           <select value={form.aliadoId||""} onChange={e=>s("aliadoId",e.target.value)}
             style={{width:"100%",border:"1px solid #ddd",borderRadius:6,padding:"8px 11px",fontSize:12,background:"white"}}>
             <option value="">Sin aliado específico</option>
-            {directorio.filter(a=>a.grupo==="programa"||!a.grupo).sort((a,b)=>(a.empresa||"").localeCompare(b.empresa||"")).map(a=>(
-              <option key={a.id} value={a.id}>{a.empresa}</option>
-            ))}
+            <optgroup label="── Programa de Aliados ──">
+              {directorio.filter(a=>a.grupo==="programa"||!a.grupo).sort((a,b)=>(a.empresa||"").localeCompare(b.empresa||"")).map(a=>(
+                <option key={a.id} value={a.id}>{a.empresa}</option>
+              ))}
+            </optgroup>
+            <optgroup label="── Convenios Históricos ──">
+              {directorio.filter(a=>a.grupo==="historico").sort((a,b)=>(a.empresa||"").localeCompare(b.empresa||"")).map(a=>(
+                <option key={a.id} value={a.id}>{a.empresa}{a.ciudad?" ("+a.ciudad+")":""}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
 
